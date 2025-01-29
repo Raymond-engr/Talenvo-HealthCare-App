@@ -34,10 +34,10 @@ class TokenCleanupService {
         },
         {
           $unset: {
-            verificationToken: "",
-            verificationTokenExpires: "",
-            resetPasswordToken: "",
-            resetPasswordExpires: ""
+            verificationToken: '',
+            verificationTokenExpires: '',
+            resetPasswordToken: '',
+            resetPasswordExpires: ''
           }
         }
       );

@@ -2,7 +2,7 @@ import mongoose, { Document, Schema } from 'mongoose';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 
-const PEPPER = process.env.PASSWORD_PEPPER
+const PEPPER = process.env.PASSWORD_PEPPER;
 
 export interface IUser extends Document {
   name: string;
