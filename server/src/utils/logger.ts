@@ -8,7 +8,7 @@ const logger = winston.createLogger({
     winston.format.splat(),
     winston.format.json()
   ),
-  defaultMeta: { service: 'Reco-M' },
+  defaultMeta: { service: 'Talenvo Healthcare App' },
   transports: [
     new winston.transports.Console({
       format: winston.format.combine(

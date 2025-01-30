@@ -38,8 +38,13 @@ class AuthController {
 
     // Find user and check password
     const user = await User.findOne({ email }).select('+password');
-    if (!user || !(await user.comparePassword(password))) {
-      throw new UnauthorizedError('Invalid credentials');
+    if (!user) {
+      throw new UnauthorizedError('No account found with this email address');
+    }
+    
+    const isPasswordCorrect = await user.comparePassword(password);
+    if (!isPasswordCorrect) {
+      throw new UnauthorizedError('Incorrect password');
     }
 
     if (!user.isEmailVerified) {
@@ -145,7 +150,7 @@ class AuthController {
     });
   });
 
-  resendVerification = asyncHandler(async (req: Request) => {
+  resendVerification = asyncHandler(async (req: Request, res: Response) => {
     const { email } = (req as any).validated.body;
     const user = await User.findOne({ email });
     if (!user) {
@@ -156,14 +161,12 @@ class AuthController {
       throw new BadRequestError('Email is already verified');
     }
     
-    if (
-      user.verificationTokenExpires &&
-      user.verificationTokenExpires > new Date() &&
-      user.verificationToken
-    ) {
-      const timeSinceLastToken = Date.now() - user.verificationTokenExpires.getTime();
-      const waitTime = 5 * 60 * 1000;
-      const timeRemaining = waitTime - timeSinceLastToken;
+    const now = new Date();
+    const waitTime = 5 * 60 * 1000;
+
+    if (user.lastVerificationTokenRequestedAt && now.getTime() - user.lastVerificationTokenRequestedAt.getTime() < waitTime)
+    {
+      const timeRemaining = waitTime - (now.getTime() - user.lastVerificationTokenRequestedAt.getTime());
       
       if (timeRemaining > 0) {
         const remainingSeconds = Math.ceil(timeRemaining / 1000);
@@ -179,6 +182,15 @@ class AuthController {
         throw new BadRequestError(message);
       }
     }
+
+    const verificationToken = user.generateVerificationToken();
+    await user.save();
+    await emailService.sendVerificationEmail(email, verificationToken);
+
+    res.status(200).json({
+      success: true,
+      message: 'A new verification email has been sent. Please check your email for verification.'
+    });
   });
 
   forgotPassword = asyncHandler(async (req: Request, res: Response) => {
@@ -191,7 +203,7 @@ class AuthController {
     const resetToken = user.generatePasswordResetToken();
     await user.save();
 
-    await emailService.sendVerificationEmail(email, resetToken);
+    await emailService.sendPasswordResetEmail(email, resetToken);
 
     res.status(200).json({
       success: true,

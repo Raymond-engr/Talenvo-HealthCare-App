@@ -4,9 +4,9 @@ const options: swaggerJsdoc.Options = {
   definition: {
     openapi: '3.0.0',
     info: {
-      title: 'Reco-M',
+      title: 'Talenvo Healthcare App',
       version: '1.0.0',
-      description: 'API documentation for Reco-M',
+      description: 'API documentation for Talenvo Healthcare App',
     },
     servers: [
       {

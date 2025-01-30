@@ -12,6 +12,7 @@ export interface IUser extends Document {
   isEmailVerified: boolean;
   verificationToken?: string;
   verificationTokenExpires?: Date;
+  lastVerificationTokenRequestedAt?: Date;
   resetPasswordToken?: string;
   resetPasswordExpires?: Date;
   refreshToken?: string;
@@ -56,6 +57,7 @@ const UserSchema: Schema<IUser> = new Schema({
   },
   verificationToken: String,
   verificationTokenExpires: Date,
+  lastVerificationTokenRequestedAt: Date,
   resetPasswordToken: String,
   resetPasswordExpires: Date,
   refreshToken: String,
@@ -96,7 +98,8 @@ UserSchema.methods.generateVerificationToken = function(): string {
     .createHash('sha256')
     .update(token)
     .digest('hex');
-  this.verificationTokenExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+  this.verificationTokenExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
+  this.lastVerificationTokenRequestedAt = new Date(); // 24 hours
   return token;
 };
 
