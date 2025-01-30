@@ -20,7 +20,7 @@ export const authenticateToken = async (
       throw new UnauthorizedError('Access token required');
     }
 
-    const payload = tokenService.verifyAccessToken(token);
+    const payload = await tokenService.verifyAccessToken(token);
     const user = await User.findById(payload.userId);
 
     if (!user) {

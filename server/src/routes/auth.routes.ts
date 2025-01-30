@@ -7,7 +7,7 @@ import {
   registerSchema,
   resetPasswordSchema,
   emailSchema 
-} from '../validators/auth.validator.js';
+} from '../validators/auth.validator';
 
 const router = Router();
 
@@ -15,7 +15,8 @@ const strictLimit = rateLimiter(5, 15 * 60 * 1000);
 const standardLimit = rateLimiter(20, 15 * 60 * 1000);
 
 // Public routes
-router.post('/register', strictLimit, validateRequests(registerSchema), authController.register);
+// change regsiter route standard limit to strict limit before production
+router.post('/register', standardLimit, validateRequests(registerSchema), authController.register);
 router.post('/login', strictLimit, validateRequests(loginSchema), authController.login);
 router.post('/google', strictLimit, authController.googleAuth);
 

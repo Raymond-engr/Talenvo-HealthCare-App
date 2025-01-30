@@ -1,5 +1,8 @@
 import nodemailer from 'nodemailer';
 import { BadRequestError } from '../utils/customErrors';
+import validateEnv from '../utils/validateEnv';
+
+validateEnv();
 
 class EmailService {
   private transporter: nodemailer.Transporter;

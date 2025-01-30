@@ -2,7 +2,10 @@ import { OAuth2Client } from 'google-auth-library';
 import passport from 'passport';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import User from '../models/user.model';
-import { UnauthorizedError } from '../utils/customErrors';
+import { UnauthorizedError, AppError } from '../utils/customErrors';
+import validateEnv from '../utils/validateEnv';
+
+validateEnv();
 
 export class GoogleAuthService {
   private client: OAuth2Client;
@@ -13,6 +16,10 @@ export class GoogleAuthService {
       process.env.GOOGLE_CLIENT_SECRET
     );
 
+    if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+      throw new AppError('GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET environment variables must be set', 500);
+    }
+
     this.initializePassport();
   }
 
@@ -22,7 +29,7 @@ export class GoogleAuthService {
         {
           clientID: process.env.GOOGLE_CLIENT_ID!,
           clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-          callbackURL: '/api/auth/google/callback',
+          callbackURL: 'http://localhost:3000/api/v1/auth/google',
           scope: ['profile', 'email']
         },
         async (accessToken, refreshToken, profile, done) => {

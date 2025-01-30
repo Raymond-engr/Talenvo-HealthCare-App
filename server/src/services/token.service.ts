@@ -2,6 +2,9 @@ import mongoose from 'mongoose';
 import jwt from 'jsonwebtoken';
 import { Response } from 'express';
 import { UnauthorizedError } from '../utils/customErrors';
+import validateEnv from '../utils/validateEnv';
+
+validateEnv();
 
 
 const BlacklistedTokenSchema = new mongoose.Schema({
@@ -17,7 +20,7 @@ const BlacklistedTokenSchema = new mongoose.Schema({
   }
 });
 
-const BlacklistedToken = mongoose.model('BlacklistedToken', BlacklistedTokenSchema);
+const BlacklistedToken = mongoose.model('BlacklistedToken', BlacklistedTokenSchema, 'BlacklistedTokens');
 
 export interface TokenPayload {
   userId: string;
