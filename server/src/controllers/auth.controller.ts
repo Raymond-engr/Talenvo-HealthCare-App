@@ -240,7 +240,8 @@ class AuthController {
   });
 
   refreshToken = asyncHandler(async (req: Request, res: Response) => {
-    const {refreshToken} = req.cookies;
+    const refreshToken = req.cookies?.refreshToken;
+    console.log(refreshToken);
 
     if (!refreshToken) {
       throw new UnauthorizedError('Refresh token required');
@@ -262,7 +263,6 @@ class AuthController {
     await user.save();
 
     tokenService.setRefreshTokenCookie(res, tokens.refreshToken);
-
     res.json({
       success: true,
       accessToken: tokens.accessToken

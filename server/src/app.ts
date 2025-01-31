@@ -3,19 +3,21 @@ import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import swaggerUi from 'swagger-ui-express';
+import cookieParser from 'cookie-parser';
+import morgan from 'morgan';
 import routes from './routes/index';
 import errorHandler from './middleware/errorHandler';
 import notFound from './middleware/notFound';
 import { corsOptions, helmetOptions, rateLimitOptions } from './utils/securityConfig';
 import logger from './utils/logger';
 import swaggerSpec from './utils/swaggerConfig';
-import morgan from 'morgan';
 
 const app: Application = express();
 
 app.use(helmet(helmetOptions));
 app.use(cors(corsOptions));
 app.use(rateLimit(rateLimitOptions));
+app.use(cookieParser());
 app.use(morgan('combined', {
   stream: {
     write: (message: string) => {

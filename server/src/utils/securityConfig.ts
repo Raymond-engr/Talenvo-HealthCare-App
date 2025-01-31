@@ -4,6 +4,7 @@ import type { HelmetOptions } from 'helmet';
 export const corsOptions: CorsOptions = {
   origin: process.env.FRONTEND_URL,
   methods: ['GET', 'POST'],
+  credentials: true,
   optionsSuccessStatus: 200
 };
 
