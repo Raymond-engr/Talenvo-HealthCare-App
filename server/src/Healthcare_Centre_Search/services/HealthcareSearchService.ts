@@ -42,7 +42,7 @@ class HealthcareCenterSearchService {
 
   constructor() {
     this.providerIntegrationService = new ProviderDataIntegrationService();
-    this.geocodingService = new GeocodingService();
+    this.geocodingService = GeocodingService;
   }
 
   async search(searchParams: SearchRequest): Promise<SearchResponse> {

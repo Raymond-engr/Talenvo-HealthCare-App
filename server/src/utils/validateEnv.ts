@@ -19,6 +19,12 @@ const validateEnv = (): void => {
     SMTP_PASS: str(),
     EMAIL_FROM: email(),
     PASSWORD_PEPPER: str(),
+    GOOGLE_MAPS_API_KEY: str(),
+    FOURSQUARE_API_KEY: str(),
+    GOOGLE_PLACES_API_KEY: str(),
+    REDIS_HOST: str(),
+    REDIS_PORT: port(),
+    
   });
 };
 
