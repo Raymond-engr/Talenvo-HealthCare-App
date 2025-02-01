@@ -170,7 +170,7 @@ class ProviderDataIntegrationService {
   }
 
   // Main Integration Method
-  static async integrateProviderData(location: [number, number], radius: number) {
+  static async integrateProviderData(location: [number, number], radius: number, country: string) {
     const [longitude, latitude] = location;
     const bbox: [number, number, number, number] = [
       latitude - (radius / 111), 
@@ -181,14 +181,14 @@ class ProviderDataIntegrationService {
 
     const providers = [
       ...await this.fetchOpenStreetMapProviders(bbox),
-      ...await this.fetchWHOProviderData('US'), // Example country
+      ...await this.fetchWHOProviderData(country), // Example country
       ...await this.fetchPlacesApiProviders(location, radius * 1000)
     ];
 
     const deduplicatedProviders = await this.deduplicateProviders(providers);
 
     // Bulk insert or update providers
-    return HealthcareProvider.bulkWrite(
+    const result = await HealthcareProvider.bulkWrite(
       deduplicatedProviders.map(provider => ({
         updateOne: {
           filter: { uniqueId: provider.uniqueId },
@@ -197,6 +197,7 @@ class ProviderDataIntegrationService {
         }
       }))
     );
+    return Object.values(result.insertedIds).map(id => ({ _id: id }));
   }
 }
 

@@ -1,5 +1,6 @@
 import { HealthcareProvider } from '../models/healthcareProvider.model';
 import ProviderDataIntegrationService from './ProviderDataIntegrationService';
+import ProviderNameIntegrationService from './ProviderNameIntegrationService';
 import GeocodingService from './GeocodingService';
 import mongoose from 'mongoose';
 
@@ -36,12 +37,12 @@ interface SearchResponse {
 }
 
 class HealthcareCenterSearchService {
-  private readonly providerIntegrationService: ProviderDataIntegrationService;
+  private readonly providerNameIntegrationService: ProviderNameIntegrationService;
   private readonly geocodingService: typeof GeocodingService;
   private readonly defaultRadius: number = 10; // 10km
 
   constructor() {
-    this.providerIntegrationService = new ProviderDataIntegrationService();
+    this.providerNameIntegrationService = new ProviderNameIntegrationService();
     this.geocodingService = GeocodingService;
   }
 
@@ -66,18 +67,33 @@ class HealthcareCenterSearchService {
       }
 
       return result;
-    } catch (error) {
-      return {
-        success: false,
-        data: {
-          providers: [],
-          searchType: 'error',
-          metadata: {
-            totalResults: 0
-          }
-        },
-        error: error.message
-      };
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        return {
+          success: false,
+          data: {
+            providers: [],
+            searchType: 'error',
+            metadata: {
+              totalResults: 0
+            }
+          },
+          error: error.message
+        };
+      } else {
+        console.error('Unknown error occurred:', error);
+        return {
+          success: false,
+          data: {
+            providers: [],
+            searchType: 'error',
+            metadata: {
+              totalResults: 0
+            }
+          },
+          error: 'An unknown error occurred.'
+        };
+      }
     }
   }
 
@@ -87,9 +103,13 @@ class HealthcareCenterSearchService {
       session.startTransaction();
       await HealthcareProvider.deleteMany({}, { session });
       await session.commitTransaction();
-    } catch (error) {
+    } catch (error: unknown) {
       await session.abortTransaction();
-      throw new Error(`Failed to clear existing providers: ${error.message}`);
+      if (error instanceof Error) {
+        throw new Error(`Failed to clear existing providers: ${error.message}`);
+      } else {
+        throw error;
+      }
     } finally {
       session.endSession();
     }
@@ -121,11 +141,11 @@ class HealthcareCenterSearchService {
     const { latitude, longitude } = params;
     
     const { country } = await this.geocodingService.reverseGeocode(latitude, longitude);
-    const providers = await this.providerIntegrationService.integrateProviderData({
-      location: [longitude, latitude],
-      radius: this.defaultRadius,
+    const providers = await ProviderDataIntegrationService.integrateProviderData(
+      [longitude, latitude],
+      this.defaultRadius,
       country
-    });
+    );
 
     return {
       success: true,
@@ -143,11 +163,11 @@ class HealthcareCenterSearchService {
   private async searchByAddress(params: AddressSearch): Promise<SearchResponse> {
     const geocodingResult = await this.geocodingService.geocodeAddress(params.address);
     
-    const providers = await this.providerIntegrationService.integrateProviderData({
-      location: [geocodingResult.longitude, geocodingResult.latitude],
-      radius: this.defaultRadius,
-      country: geocodingResult.country!
-    });
+    const providers = await ProviderDataIntegrationService.integrateProviderData(
+      [geocodingResult.longitude, geocodingResult.latitude],
+      this.defaultRadius,
+      geocodingResult.country!
+    );
 
     return {
       success: true,
@@ -167,7 +187,7 @@ class HealthcareCenterSearchService {
   }
 
   private async searchByName(params: NameSearch): Promise<SearchResponse> {
-    const providers = await this.providerIntegrationService.integrateProviderByName({
+    const providers = await this.providerNameIntegrationService.integrateProviderByName({
       name: params.name,
       country: 'global'
     });

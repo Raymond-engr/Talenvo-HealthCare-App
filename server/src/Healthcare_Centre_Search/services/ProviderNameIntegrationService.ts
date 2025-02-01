@@ -1,55 +1,27 @@
-import { HealthcareProvider, InstitutionType, OwnershipType } from './healthcareProviderSchema';
-import GeocodingService from './geocodingService';
-import { Redis } from 'ioredis';
+import { HealthcareProvider, InstitutionType, OwnershipType } from '../models/healthcareProvider.model';
+import GeocodingService from './GeocodingService';
+import { redis } from './redisClient';
 import axios from 'axios';
 
-interface ProviderSearchParams {
-  location: [number, number];
-  radius: number;
-  country: string;
-}
 
 interface ProviderSearchByNameParams {
   name: string;
   country: string;
 }
 
-class ProviderDataIntegrationService {
+class ProviderNameIntegrationService {
   private readonly googlePlacesApiKey: string;
-  private readonly geocodingService: GeocodingService;
-  private readonly redis: Redis;
+  private readonly geocodingService: typeof GeocodingService;
+  private readonly redis: typeof redis;
 
   constructor() {
     this.googlePlacesApiKey = process.env.GOOGLE_PLACES_API_KEY!;
-    this.geocodingService = new GeocodingService();
-    this.redis = new Redis();
+    this.geocodingService = GeocodingService;
+    this.redis = redis;
+    
 
     if (!this.googlePlacesApiKey) {
       throw new Error('Google Places API key is required');
-    }
-  }
-
-  async integrateProviderData({
-    location,
-    radius,
-    country
-  }: ProviderSearchParams) {
-    try {
-      const [longitude, latitude] = location;
-      const bbox = this.calculateBoundingBox(latitude, longitude, radius);
-
-      const providers = await Promise.all([
-        this.fetchOpenStreetMapProviders(bbox, country),
-        this.fetchWHOProviderData(country),
-        this.fetchGooglePlacesProviders(location, radius, country)
-      ]);
-
-      const flattenedProviders = providers.flat();
-      const deduplicatedProviders = await this.deduplicateProviders(flattenedProviders);
-
-      return this.saveProviders(deduplicatedProviders);
-    } catch (error) {
-      throw new Error(`Provider integration failed: ${error.message}`);
     }
   }
 
@@ -73,8 +45,12 @@ class ProviderDataIntegrationService {
       await this.redis.set(cacheKey, JSON.stringify(result), 'EX', 3600);
 
       return result;
-    } catch (error) {
-      throw new Error(`Provider integration by name failed: ${error.message}`);
+    }  catch (error: unknown) {
+      if (error instanceof Error) {
+        throw new Error(`Provider integration by name failed: ${error.message}`);
+      } else {
+        throw new Error('Provider integration by name failed: Unknown error');
+      }
     }
   }
 
@@ -105,8 +81,12 @@ class ProviderDataIntegrationService {
           return detailsResponse.data.result;
         })
       );
-    } catch (error) {
-      throw new Error(`Google Places search failed: ${error.message}`);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        throw new Error(`Google Places search failed: ${error.message}`);
+      } else {
+        throw new Error('Google Places search failed: Unknown error');
+      }
     }
   }
 
@@ -174,7 +154,20 @@ class ProviderDataIntegrationService {
     return days[day];
   }
 
+  async saveProviders(providers: any[]) {
+    
+    return HealthcareProvider.bulkWrite(
+      providers.map(provider => ({
+        updateOne: {
+          filter: { uniqueId: provider.uniqueId },
+          update: { $set: provider },
+          upsert: true
+        }
+      }))
+    );
+  }
+
   // ... (previous methods remain the same)
 }
 
-export default ProviderDataIntegrationService;
+export default ProviderNameIntegrationService;
