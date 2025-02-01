@@ -130,7 +130,7 @@ class ProviderDataIntegrationService {
 
   // Utility Methods for Mapping
   private static mapInstitutionType(type: string): InstitutionType {
-    const typeMap = {
+    const typeMap: { [key: string]: InstitutionType } = {
       'hospital': InstitutionType.HOSPITAL,
       'clinic': InstitutionType.CLINIC,
       'medical': InstitutionType.MEDICAL_CENTER,
@@ -141,7 +141,7 @@ class ProviderDataIntegrationService {
   }
 
   private static mapOwnershipType(ownership: string): OwnershipType {
-    const ownershipMap = {
+    const ownershipMap: { [key: string]: OwnershipType } = {
       'public': OwnershipType.PUBLIC,
       'private': OwnershipType.PRIVATE,
       'government': OwnershipType.GOVERNMENT
@@ -172,11 +172,11 @@ class ProviderDataIntegrationService {
   // Main Integration Method
   static async integrateProviderData(location: [number, number], radius: number) {
     const [longitude, latitude] = location;
-    const bbox = [
-      latitude - radius/111, 
-      longitude - radius/111, 
-      latitude + radius/111, 
-      longitude + radius/111
+    const bbox: [number, number, number, number] = [
+      latitude - (radius / 111), 
+      longitude - (radius / 111), 
+      latitude + (radius / 111), 
+      longitude + (radius / 111)
     ];
 
     const providers = [

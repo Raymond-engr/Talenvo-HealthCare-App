@@ -1,4 +1,4 @@
-import { HealthcareProvider, InstitutionType } from './healthcareProviderSchema';
+import { HealthcareProvider, InstitutionType } from '../models/healthcareProvider.model';
 import GeoUtils from '../services/Geoutils';
 
 interface SearchFilters {
