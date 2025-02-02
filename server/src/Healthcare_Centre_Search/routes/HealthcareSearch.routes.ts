@@ -1,10 +1,11 @@
 import express from 'express';
-import { validateSearchRequest } from '../../validators/search.validator';
+import { validateSearchRequest, validateFilterRequest } from '../../validators/search.validator';
+import { healthcareController } from '../controllers/HealthcareSearch.controller';
 
 const router = express.Router();
 
-router.post('/', validateSearchRequest, (req, res) => {
-  res.json({ message: 'Validation passed!', data: req.body });
-});
+router.route('/').get(validateSearchRequest, healthcareController.search);
+router.route('/filter').get(validateFilterRequest, healthcareController.getProvidersByFilters);
+router.route('/accuracy').get(healthcareController.validateProvider);
 
 export default router;

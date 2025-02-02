@@ -1,7 +1,9 @@
-import { HealthcareProvider, InstitutionType, OwnershipType } from '../models/healthcareProvider.model';
 import GeocodingService from './GeocodingService';
-import { redis } from './redisClient';
 import axios from 'axios';
+import pLimit from 'p-limit';
+import { redis } from './redisClient';
+import { HealthcareProvider, InstitutionType, OwnershipType } from '../models/healthcareProvider.model';
+import { GooglePlace } from '../../types/types';
 
 
 interface ProviderSearchByNameParams {
@@ -35,13 +37,22 @@ class ProviderNameIntegrationService {
       }
 
       const placeDetails = await this.searchGooglePlacesByName(name, country);
-      const providers = await Promise.all(
-        placeDetails.map(place => this.convertGooglePlaceToProvider(place))
+
+      if (!placeDetails || placeDetails.length === 0) {
+        throw new Error('No place details found.');
+      }
+
+      const limit = pLimit(5);
+      const providers = await Promise.allSettled(
+        placeDetails.map(place => limit(() => this.convertGooglePlaceToProvider(place)))
       );
 
-      const result = await this.saveProviders(providers);
+      const successfulProviders = providers
+        .filter(result => result.status === 'fulfilled')
+        .map(result => (result as PromiseFulfilledResult<any>).value);
 
-      // Cache the result
+      const result = await this.saveProviders(successfulProviders);
+
       await this.redis.set(cacheKey, JSON.stringify(result), 'EX', 3600);
 
       return result;
@@ -69,8 +80,9 @@ class ProviderNameIntegrationService {
       }
 
       // Fetch detailed information for each place
-      return Promise.all(
-        response.data.results.map(async (place: any) => {
+      const limit = pLimit(5);
+      const placeDetails = await Promise.all(
+        response.data.results.map((place: GooglePlace) => limit(async () => {
           const detailsResponse = await axios.get('https://maps.googleapis.com/maps/api/place/details/json', {
             params: {
               place_id: place.place_id,
@@ -79,8 +91,9 @@ class ProviderNameIntegrationService {
             }
           });
           return detailsResponse.data.result;
-        })
+        }))
       );
+      return placeDetails.filter(result => result.status === 'fulfilled').map(result => result.value);
     } catch (error: unknown) {
       if (error instanceof Error) {
         throw new Error(`Google Places search failed: ${error.message}`);
@@ -166,8 +179,6 @@ class ProviderNameIntegrationService {
       }))
     );
   }
-
-  // ... (previous methods remain the same)
 }
 
 export default ProviderNameIntegrationService;

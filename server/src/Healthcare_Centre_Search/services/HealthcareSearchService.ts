@@ -1,23 +1,10 @@
 import { HealthcareProvider } from '../models/healthcareProvider.model';
+import { LocationSearch, AddressSearch, NameSearch, SearchRequest,  } from '../../types/types';
 import ProviderDataIntegrationService from './ProviderDataIntegrationService';
 import ProviderNameIntegrationService from './ProviderNameIntegrationService';
 import GeocodingService from './GeocodingService';
 import mongoose from 'mongoose';
 
-interface LocationSearch {
-  latitude: number;
-  longitude: number;
-}
-
-interface AddressSearch {
-  address: string;
-}
-
-interface NameSearch {
-  name: string;
-}
-
-type SearchRequest = LocationSearch | AddressSearch | NameSearch;
 
 interface SearchResponse {
   success: boolean;
