@@ -51,7 +51,6 @@ class ProviderDataValidationService {
 
   private getSourceReliability(source: string): number {
     const reliabilityScores = {
-      'WHO': 0.9,
       'OpenStreetMap': 0.7,
       'GooglePlaces': 0.8,
       'Foursquare': 0.6

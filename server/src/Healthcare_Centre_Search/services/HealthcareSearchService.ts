@@ -130,8 +130,7 @@ class HealthcareCenterSearchService {
     const { country } = await this.geocodingService.reverseGeocode(latitude, longitude);
     const providers = await ProviderDataIntegrationService.integrateProviderData(
       [longitude, latitude],
-      this.defaultRadius,
-      country
+      this.defaultRadius
     );
 
     return {
@@ -152,8 +151,7 @@ class HealthcareCenterSearchService {
     
     const providers = await ProviderDataIntegrationService.integrateProviderData(
       [geocodingResult.longitude, geocodingResult.latitude],
-      this.defaultRadius,
-      geocodingResult.country!
+      this.defaultRadius
     );
 
     return {

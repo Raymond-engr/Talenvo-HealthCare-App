@@ -1,10 +1,12 @@
 import GeocodingService from './GeocodingService';
 import axios from 'axios';
 import pLimit from 'p-limit';
+import validateEnv from '../../utils/validateEnv';
 import { redis } from './redisClient';
 import { HealthcareProvider, InstitutionType, OwnershipType } from '../models/healthcareProvider.model';
 import { GooglePlace } from '../../types/types';
 
+validateEnv();
 
 interface ProviderSearchByNameParams {
   name: string;
@@ -113,7 +115,7 @@ class ProviderNameIntegrationService {
       uniqueId: `GOOGLE_${place.place_id}`,
       name: place.name,
       institutionType: this.mapGooglePlaceTypeToInstitutionType(place.types),
-      ownershipType: OwnershipType.PRIVATE, // Default, as Google doesn't provide this info
+      ownershipType: OwnershipType.PRIVATE,
       location: {
         address: {
           streetAddress: place.formatted_address,

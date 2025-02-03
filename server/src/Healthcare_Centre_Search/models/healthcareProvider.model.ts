@@ -46,11 +46,19 @@ interface IServiceCapabilities {
   languages: string[];
 }
 
+interface ITip {
+  text: string;
+  author: string;
+  likes: number;
+  date: Date;
+}
+
 // Interface for healthcare provider
 interface IHealthcareProvider extends Document {
   // Base Information
   uniqueId: string;
   name: string;
+  photo?: string;
   alternateNames?: string[];
   institutionType: InstitutionType;
   ownershipType: OwnershipType;
@@ -66,28 +74,20 @@ interface IHealthcareProvider extends Document {
     };
     coordinates: {
       type: 'Point';
-      coordinates: [number, number]; // [longitude, latitude]
+      coordinates: [number, number];
     };
     landmark?: string;
     neighborhood?: string;
   };
-
-  // Contact Information
   contactInfo: IContactInfo;
-
-  // Operating Details
   operatingHours: IOperatingHours[];
-
-  // Service Capabilities
   serviceCapabilities: IServiceCapabilities;
-
-  // Metadata
+  tips?: ITip[];
   verifiedDate: Date;
   lastUpdated: Date;
-  sourceApis: string[]; // APIs used to source this data
+  sourceApis: string[];
 }
 
-// Create the Mongoose Schema
 const HealthcareProviderSchema = new Schema<IHealthcareProvider>({
   uniqueId: { 
     type: String, 
@@ -98,7 +98,15 @@ const HealthcareProviderSchema = new Schema<IHealthcareProvider>({
   name: { 
     type: String, 
     required: true,
-    text: true // Enable text search
+    text: true
+  },
+  photo: {
+    type: String,
+    trim: true,
+    match: [
+      /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,})([/\w.-]*)*\/?$/,
+      'Please enter a valid URL for the image',
+    ],
   },
   alternateNames: [String],
   institutionType: { 
@@ -112,7 +120,6 @@ const HealthcareProviderSchema = new Schema<IHealthcareProvider>({
     required: true 
   },
 
-  // Location Details
   location: {
     address: {
       streetAddress: { type: String, required: true },
@@ -137,7 +144,6 @@ const HealthcareProviderSchema = new Schema<IHealthcareProvider>({
     neighborhood: String
   },
 
-  // Contact Information
   contactInfo: {
     phoneNumbers: [String],
     email: { 
@@ -157,7 +163,6 @@ const HealthcareProviderSchema = new Schema<IHealthcareProvider>({
     }
   },
 
-  // Operating Hours
   operatingHours: [{
     day: { 
       type: String, 
@@ -168,7 +173,6 @@ const HealthcareProviderSchema = new Schema<IHealthcareProvider>({
     isOpen24Hours: { type: Boolean, default: false }
   }],
 
-  // Service Capabilities
   serviceCapabilities: {
     specialties: [String],
     appointmentBooking: {
@@ -182,8 +186,28 @@ const HealthcareProviderSchema = new Schema<IHealthcareProvider>({
     emergencyServices: { type: Boolean, default: false },
     languages: [String]
   },
+  tips: {
+    text: { 
+      type: String, 
+      required: true, 
+      trim: true 
+    },
+    author: { 
+      type: String, 
+      required: true, 
+      trim: true 
+    },
+    likes: { 
+      type: Number, 
+      default: 0, 
+      min: 0 
+    },
+    date: { 
+      type: Date, 
+      default: Date.now 
+    }
+  },
 
-  // Metadata
   verifiedDate: { type: Date, default: Date.now },
   lastUpdated: { type: Date, default: Date.now },
   sourceApis: [String]
