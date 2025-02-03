@@ -12,33 +12,6 @@ export interface NameSearch {
   }
   
 export type SearchRequest = LocationSearch | AddressSearch | NameSearch;
-  
-export interface GooglePlace {
-  place_id: string;
-  name: string;
-  formatted_address: string;
-  geometry: {
-    location: {
-      lat: number;
-      lng: number;
-    };
-  };
-  formatted_phone_number: string | null;
-  website: string | null;
-  opening_hours: {
-    periods: {
-      open: {
-        day: number;
-        time: string;
-      };
-      close?: {
-        day: number;
-        time: string;
-      };
-    }[];
-  } | null;
-  types: string[];
-}
 
 export interface IOperatingHours {
   day: string;

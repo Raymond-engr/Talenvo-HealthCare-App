@@ -39,8 +39,8 @@ interface IServiceCapabilities {
   specialties: string[];
   appointmentBooking: {
     available: boolean;
-    methods: string[]; // e.g., 'online', 'phone', 'walk-in'
-    advanceNoticeRequired?: number; // in hours
+    methods: string[];
+    advanceNoticeRequired?: number;
   };
   emergencyServices: boolean;
   languages: string[];
@@ -249,5 +249,9 @@ export {
   HealthcareProvider, 
   InstitutionType, 
   OwnershipType,
+  IOperatingHours,
+  IContactInfo,
+  IServiceCapabilities,
+  ITip,
   IHealthcareProvider 
 };

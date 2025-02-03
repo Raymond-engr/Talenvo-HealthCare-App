@@ -1,4 +1,5 @@
 import Redis from 'ioredis';
+import logger from '../../utils/logger';
 import validateEnv from '../../utils/validateEnv';
 
 validateEnv();
@@ -11,5 +12,5 @@ export const redis = new Redis({
 });
 
 redis.on('error', (err) => {
-  console.error('Redis Error:', err);
+  logger.error('Redis Error:', err);
 });

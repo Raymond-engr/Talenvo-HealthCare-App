@@ -5,7 +5,7 @@ import { SearchRequest } from '../../types/types';
 import HealthcareCenterSearchService from '../services/HealthcareSearchService';
 import ProviderDataValidationService from '../services/ProviderDataValidationService';
 import ProviderSearchFilter from '../helpers/ProviderSearchFilter';
-import asyncHandler from '../../utils/asyncHandler';  // Import asyncHandler
+import asyncHandler from '../../utils/asyncHandler';
 
 class HealthcareController {
   private readonly searchService: HealthcareCenterSearchService;
@@ -16,7 +16,6 @@ class HealthcareController {
     this.validationService = new ProviderDataValidationService();
   }
 
-  // Main search endpoint wrapped with asyncHandler
   search = asyncHandler(async (req: Request, res: Response) => {
     const { LocationSearch, AddressSearch, NameSearch }: ValidatedRequest = 
       (req as Request & { validatedQuery: ValidatedRequest }).validatedQuery;
@@ -55,7 +54,6 @@ class HealthcareController {
     });
   });
 
-  // Validate provider data wrapped with asyncHandler
   validateProvider = asyncHandler(async (req: Request, res: Response) => {
     const providerData = req.body;
     const validatedData = await this.validationService.validateProviderData([{
