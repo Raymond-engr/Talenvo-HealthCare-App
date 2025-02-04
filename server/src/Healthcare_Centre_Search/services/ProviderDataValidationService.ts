@@ -1,6 +1,9 @@
 import axios from 'axios';
 import { redis } from './redisClient';
 import validateEnv from '../../utils/validateEnv';
+import logger from '../../utils/logger';
+import { AppError } from '../../utils/customErrors';
+import { handleExternalServiceError, validateApiKey } from '../helpers/handleExternalServiceErrors';
 
 validateEnv();
 
@@ -11,42 +14,72 @@ interface ProviderSource {
 }
 
 class ProviderDataValidationService {
+  private googlePlacesApiKey: string;
+
+  constructor() {
+    this.googlePlacesApiKey = process.env.GOOGLE_PLACES_API_KEY || '';
+    validateApiKey(this.googlePlacesApiKey, 'Google Places');
+  }
   // Cross-reference data from multiple sources
   async validateProviderData(providers: ProviderSource[]) {
+    logger.info('Starting provider data validation', { 
+      providersCount: providers.length 
+    });
+
     const validatedProviders = [];
 
     for (const provider of providers) {
-      const validatedProvider = await this.validateSingleProvider(provider);
-      if (validatedProvider) {
-        validatedProviders.push(validatedProvider);
+      try {
+        const validatedProvider = await this.validateSingleProvider(provider);
+        if (validatedProvider) {
+          validatedProviders.push(validatedProvider);
+        }
+      } catch (error) {
+        logger.warn('Failed to validate individual provider', { 
+          source: provider.source, 
+          error: error instanceof Error ? error.message : error 
+        });
       }
     }
+
+    logger.info('Provider data validation completed', { 
+      totalProviders: providers.length, 
+      validatedProvidersCount: validatedProviders.length 
+    });
 
     return validatedProviders;
   }
 
   private async validateSingleProvider(providerSource: ProviderSource) {
-    const sourceReliability = this.getSourceReliability(providerSource.source);
-    let confidenceScore = providerSource.confidence * sourceReliability;
+    try {
+      const sourceReliability = this.getSourceReliability(providerSource.source);
+      let confidenceScore = providerSource.confidence * sourceReliability;
 
-    const crossReferencedData = await this.crossReferenceProvider(providerSource);
+      const crossReferencedData = await this.crossReferenceProvider(providerSource);
 
-    if (crossReferencedData) {
-      confidenceScore *= 1.2; // Boost confidence for verified data
-    }
-
-    const validationResults = this.validateProviderInformation(providerSource.data);
-
-    confidenceScore *= this.computeValidationMultiplier(validationResults);
-
-    return {
-      ...providerSource.data,
-      metadata: {
-        sourceConfidence: confidenceScore,
-        crossReferenced: !!crossReferencedData,
-        validationResults
+      if (crossReferencedData) {
+        confidenceScore *= 1.2; // Boost confidence for verified data
       }
-    };
+
+      const validationResults = this.validateProviderInformation(providerSource.data);
+
+      confidenceScore *= this.computeValidationMultiplier(validationResults);
+
+      return {
+        ...providerSource.data,
+        metadata: {
+          sourceConfidence: confidenceScore,
+          crossReferenced: !!crossReferencedData,
+          validationResults
+        }
+      };
+    } catch (error) {
+      logger.error('Error validating single provider', { 
+        source: providerSource.source, 
+        error: error instanceof Error ? error.message : error 
+      });
+      throw error;
+    }
   }
 
   private getSourceReliability(source: string): number {
@@ -67,26 +100,41 @@ class ProviderDataValidationService {
 
       return this.compareProviderData(providerSource.data, googlePlacesResult);
     } catch (error) {
-      console.warn('Cross-reference failed:', error);
+      logger.warn('Cross-reference failed', { 
+        providerName: providerSource.data.name, 
+        error: error instanceof Error ? error.message : error 
+      });
       return null;
     }
   }
 
   private async fetchGooglePlacesData(name: string, coordinates: [number, number]) {
     try {
+      logger.info('Fetching Google Places data', { name, coordinates });
+
       const response = await axios.get('https://maps.googleapis.com/maps/api/place/nearbysearch/json', {
         params: {
           location: coordinates.reverse().join(','),
           radius: 500,
           keyword: name,
-          key: process.env.GOOGLE_PLACES_API_KEY
+          key: this.googlePlacesApiKey
         }
       });
 
+      if (!response.data.results || response.data.results.length === 0) {
+        logger.warn('No results found in Google Places API', { name, coordinates });
+        return null;
+      }
+
       return response.data.results[0];
     } catch (error) {
-      console.error('Google Places API Error:', error);
-      return null;
+      logger.error('Google Places API Error', { 
+        name, 
+        coordinates, 
+        error: error instanceof Error ? error.message : error 
+      });
+
+      return handleExternalServiceError('Google Places', error);
     }
   }
 
@@ -94,7 +142,15 @@ class ProviderDataValidationService {
     if (!crossReferenceData) return null;
 
     const matchScore = this.computeDataMatchScore(sourceData, crossReferenceData);
-    return matchScore > 0.7 ? crossReferenceData : null;
+    const isMatch = matchScore > 0.7;
+
+    logger.info('Provider data comparison result', { 
+      sourceName: sourceData.name, 
+      matchScore, 
+      isMatch 
+    });
+
+    return isMatch ? crossReferenceData : null;
   }
 
   private computeDataMatchScore(sourceData: any, referenceData: any): number {
@@ -192,21 +248,46 @@ class ProviderDataValidationService {
   }
 
   async cacheValidatedProvider(provider: any) {
-    const cacheKey = `provider:${provider.uniqueId}`;
-    
-    await redis.set(
-      cacheKey, 
-      JSON.stringify(provider), 
-      'EX', 
-      24 * 60 * 60
-    );
+    try {
+      const cacheKey = `provider:${provider.uniqueId}`;
+      
+      logger.info('Caching validated provider', { 
+        uniqueId: provider.uniqueId 
+      });
+
+      await redis.set(
+        cacheKey, 
+        JSON.stringify(provider), 
+        'EX', 
+        24 * 60 * 60
+      );
+    } catch (error) {
+      logger.error('Failed to cache provider', { 
+        uniqueId: provider.uniqueId, 
+        error: error instanceof Error ? error.message : error 
+      });
+      throw new AppError('Failed to cache provider', 500);
+    }
   }
 
   async getCachedProvider(uniqueId: string) {
-    const cacheKey = `provider:${uniqueId}`;
-    const cachedProvider = await redis.get(cacheKey);
-    
-    return cachedProvider ? JSON.parse(cachedProvider) : null;
+    try {
+      const cacheKey = `provider:${uniqueId}`;
+      const cachedProvider = await redis.get(cacheKey);
+      
+      logger.info('Retrieving cached provider', { 
+        uniqueId, 
+        isCached: !!cachedProvider 
+      });
+
+      return cachedProvider ? JSON.parse(cachedProvider) : null;
+    } catch (error) {
+      logger.error('Failed to retrieve cached provider', { 
+        uniqueId, 
+        error: error instanceof Error ? error.message : error 
+      });
+      throw new AppError('Failed to retrieve cached provider', 500);
+    }
   }
 }
 

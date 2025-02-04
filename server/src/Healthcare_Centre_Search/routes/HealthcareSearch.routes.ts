@@ -6,6 +6,7 @@ const router = express.Router();
 
 router.route('/').get(validateSearchRequest, healthcareController.search);
 router.route('/filter').get(validateFilterRequest, healthcareController.getProvidersByFilters);
+// Will implement this accuracy route better later
 router.route('/accuracy').get(healthcareController.validateProvider);
 
 export default router;

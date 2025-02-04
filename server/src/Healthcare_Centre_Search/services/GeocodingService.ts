@@ -1,6 +1,9 @@
 import axios, { AxiosInstance } from 'axios';
 import { RateLimiter } from 'limiter';
 import { redis } from './redisClient';
+import logger from '../../utils/logger';
+import { handleExternalServiceError, validateApiKey } from '../helpers/handleExternalServiceErrors';
+import { ExternalServiceAPIError, AppError } from '../../utils/customErrors';
 
 interface GeocodingResponse {
   latitude: number;
@@ -20,12 +23,18 @@ class GeocodingService {
   private readonly googleMapsClient: AxiosInstance;
   private readonly rateLimiter: RateLimiter;
   private readonly CACHE_DURATION = 60 * 60 * 24; // 24 hours
+  private readonly apiKey: string;
 
   constructor() {
+    // Validate API key
+    this.apiKey = process.env.GOOGLE_MAPS_API_KEY || '';
+    validateApiKey(this.apiKey, 'Google Maps');
+
+    // Create axios client with API key
     this.googleMapsClient = axios.create({
       baseURL: 'https://maps.googleapis.com/maps/api',
       params: {
-        key: process.env.GOOGLE_MAPS_API_KEY
+        key: this.apiKey
       }
     });
 
@@ -37,9 +46,15 @@ class GeocodingService {
   }
 
   private async waitForRateLimit(): Promise<void> {
-    const hasToken = await this.rateLimiter.tryRemoveTokens(1);
-    if (!hasToken) {
-      throw new Error('Rate limit exceeded');
+    try {
+      const hasToken = await this.rateLimiter.tryRemoveTokens(1);
+      if (!hasToken) {
+        logger.warn('Rate limit exceeded for Google Maps API');
+        throw new ExternalServiceAPIError('Google Maps API rate limit exceeded', 429);
+      }
+    } catch (error) {
+      logger.error('Error in rate limiting', { error });
+      throw error;
     }
   }
 
@@ -48,30 +63,37 @@ class GeocodingService {
   }
 
   async geocodeAddress(address: string): Promise<GeocodingResponse> {
-    if (!address.trim()) {
-      throw new Error('Address cannot be empty');
+    // Input validation
+    if (!address || !address.trim()) {
+      logger.error('Geocoding failed: Empty address provided');
+      throw new AppError('Address cannot be empty', 400);
     }
 
     const cacheKey = this.generateCacheKey('address', address);
-    const cachedResult = await redis.get(cacheKey);
-
-    if (cachedResult) {
-      return JSON.parse(cachedResult);
-    }
-
+    
     try {
-      await this.waitForRateLimit();
-
-      const response = await this.googleMapsClient.get('/geocode/json', {
-        params: {
-          address: address
-        }
-      });
-
-      if (!response.data.results || response.data.results.length === 0) {
-        throw new Error('No results found for the given address');
+      // Check cache first
+      const cachedResult = await redis.get(cacheKey);
+      if (cachedResult) {
+        logger.info(`Geocoding cache hit for address: ${address}`);
+        return JSON.parse(cachedResult);
       }
 
+      // Wait for rate limit
+      await this.waitForRateLimit();
+
+      // Make API call
+      const response = await this.googleMapsClient.get('/geocode/json', {
+        params: { address: address }
+      });
+
+      // Validate response
+      if (!response.data.results || response.data.results.length === 0) {
+        logger.warn(`No geocoding results for address: ${address}`);
+        throw new AppError('No results found for the given address', 404);
+      }
+
+      // Process response
       const result = response.data.results[0];
       const formattedResponse: GeocodingResponse = {
         latitude: result.geometry.location.lat,
@@ -89,12 +111,13 @@ class GeocodingService {
         this.CACHE_DURATION
       );
 
+      logger.info(`Successfully geocoded address: ${address}`);
       return formattedResponse;
-    } catch (error) {
-      if (axios.isAxiosError(error)) {
-        throw new Error(`Geocoding failed: ${error.response?.data?.error_message || error.message}`);
-      }
-      throw error;
+
+    } catch (error: any) {
+      // Use external service error handler
+      logger.error(`Geocoding error for address: ${address}`, { error });
+      return handleExternalServiceError('Google Maps', error);
     }
   }
 
@@ -102,28 +125,39 @@ class GeocodingService {
     latitude: number,
     longitude: number
   ): Promise<ReverseGeocodingResponse> {
-    this.validateCoordinates(latitude, longitude);
-
-    const cacheKey = this.generateCacheKey('reverse', `${latitude},${longitude}`);
-    const cachedResult = await redis.get(cacheKey);
-
-    if (cachedResult) {
-      return JSON.parse(cachedResult);
+    // Validate coordinates
+    try {
+      this.validateCoordinates(latitude, longitude);
+    } catch (error: any) {
+      logger.error('Invalid coordinates for reverse geocoding', { latitude, longitude, error });
+      throw new AppError(error.message, 400);
     }
 
+    const cacheKey = this.generateCacheKey('reverse', `${latitude},${longitude}`);
+    
     try {
-      await this.waitForRateLimit();
-
-      const response = await this.googleMapsClient.get('/geocode/json', {
-        params: {
-          latlng: `${latitude},${longitude}`
-        }
-      });
-
-      if (!response.data.results || response.data.results.length === 0) {
-        throw new Error('No results found for the given coordinates');
+      // Check cache first
+      const cachedResult = await redis.get(cacheKey);
+      if (cachedResult) {
+        logger.info(`Reverse geocoding cache hit for coordinates: ${latitude},${longitude}`);
+        return JSON.parse(cachedResult);
       }
 
+      // Wait for rate limit
+      await this.waitForRateLimit();
+
+      // Make API call
+      const response = await this.googleMapsClient.get('/geocode/json', {
+        params: { latlng: `${latitude},${longitude}` }
+      });
+
+      // Validate response
+      if (!response.data.results || response.data.results.length === 0) {
+        logger.warn(`No reverse geocoding results for coordinates: ${latitude},${longitude}`);
+        throw new AppError('No results found for the given coordinates', 404);
+      }
+
+      // Process response
       const result = response.data.results[0];
       const formattedResponse: ReverseGeocodingResponse = {
         country: this.extractCountry(result.address_components),
@@ -139,12 +173,13 @@ class GeocodingService {
         this.CACHE_DURATION
       );
 
+      logger.info(`Successfully reverse geocoded coordinates: ${latitude},${longitude}`);
       return formattedResponse;
-    } catch (error) {
-      if (axios.isAxiosError(error)) {
-        throw new Error(`Reverse geocoding failed: ${error.response?.data?.error_message || error.message}`);
-      }
-      throw error;
+
+    } catch (error: any) {
+      // Use external service error handler
+      logger.error(`Reverse geocoding error for coordinates: ${latitude},${longitude}`, { error });
+      return handleExternalServiceError('Google Maps', error);
     }
   }
 

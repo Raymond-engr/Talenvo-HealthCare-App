@@ -224,7 +224,6 @@ HealthcareProviderSchema.index({
   'serviceCapabilities.specialties': 'text'
 });
 
-// Pre-save hook for updating last updated timestamp
 HealthcareProviderSchema.pre('save', function(next) {
   this.lastUpdated = new Date();
   next();
@@ -242,8 +241,7 @@ HealthcareProviderSchema.methods.findNearby = function(maxDistance: number) {
   });
 };
 
-// Create the model
-const HealthcareProvider = mongoose.model<IHealthcareProvider>('HealthcareProvider', HealthcareProviderSchema);
+const HealthcareProvider = mongoose.model<IHealthcareProvider>('HealthcareProvider', HealthcareProviderSchema, 'HealthcareProvider');
 
 export { 
   HealthcareProvider, 

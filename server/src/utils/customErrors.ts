@@ -52,5 +52,13 @@ class ExternalServiceAPIError extends AppError {
   }
   details?: any;
 }
+
+class ValidationError extends AppError {
+  constructor(message: string, details?: any) {
+    super(message, 422);
+    this.details = details;
+  }
+  details?: any;
+}
   
-export { AppError, BadRequestError, NotFoundError, UnauthorizedError, RateLimitError, ExternalServiceAPIError, ForbiddenError };
+export { AppError, BadRequestError, NotFoundError, UnauthorizedError, RateLimitError, ExternalServiceAPIError, ForbiddenError, ValidationError };

@@ -3,7 +3,12 @@ import axios from 'axios';
 import pLimit from 'p-limit';
 import validateEnv from '../../utils/validateEnv';
 import { redis } from './redisClient';
-import { HealthcareProvider, InstitutionType, OwnershipType, IOperatingHours, IContactInfo, IServiceCapabilities, ITip } from '../models/healthcareProvider.model';
+import logger from '../../utils/logger';
+import { AppError, BadRequestError } from '../../utils/customErrors';
+import { handleExternalServiceError, validateApiKey } from '../helpers/handleExternalServiceErrors';
+import { HealthcareProvider, InstitutionType, OwnershipType, IOperatingHours } from '../models/healthcareProvider.model';
+
+validateEnv();
 
 interface ProviderSearchByNameParams {
   name: string;
@@ -16,28 +21,31 @@ class ProviderNameIntegrationService {
   private readonly redis: typeof redis;
 
   constructor() {
-    this.googlePlacesApiKey = process.env.GOOGLE_PLACES_API_KEY!;
+    this.googlePlacesApiKey = process.env.GOOGLE_PLACES_API_KEY || '';
     this.geocodingService = GeocodingService;
     this.redis = redis;
 
-    if (!this.googlePlacesApiKey) {
-      throw new Error('Google Places API key is required');
-    }
+    // Use API key validation
+    validateApiKey(this.googlePlacesApiKey, 'Google Places');
   }
 
   async integrateProviderByName({ name, country }: ProviderSearchByNameParams) {
     try {
+      logger.info('Starting provider integration by name', { name, country });
+
       const cacheKey = `provider:${name}:${country}`;
       const cachedResult = await this.redis.get(cacheKey);
 
       if (cachedResult) {
+        logger.info('Retrieved provider data from cache', { name, country });
         return JSON.parse(cachedResult);
       }
 
       const placeDetails = await this.searchGooglePlacesByName(name, country);
 
       if (!placeDetails || placeDetails.length === 0) {
-        throw new Error('No place details found.');
+        logger.warn('No place details found', { name, country });
+        throw new BadRequestError('No healthcare providers found matching the search criteria.');
       }
 
       const limit = pLimit(5);
@@ -49,22 +57,42 @@ class ProviderNameIntegrationService {
         .filter(result => result.status === 'fulfilled')
         .map(result => (result as PromiseFulfilledResult<any>).value);
 
+      if (successfulProviders.length === 0) {
+        logger.warn('No providers could be converted', { name, country });
+        throw new AppError('Failed to convert any providers', 400);
+      }
+
       const result = await this.saveProviders(successfulProviders);
 
+      // Cache the result for 1 hour
       await this.redis.set(cacheKey, JSON.stringify(result), 'EX', 3600);
+
+      logger.info('Provider integration completed successfully', { 
+        name, 
+        country, 
+        providersCount: successfulProviders.length 
+      });
 
       return result;
     } catch (error: unknown) {
-      if (error instanceof Error) {
-        throw new Error(`Provider integration by name failed: ${error.message}`);
-      } else {
-        throw new Error('Provider integration by name failed: Unknown error');
+      logger.error('Provider integration failed', { 
+        name, 
+        country, 
+        error: error instanceof Error ? error.message : error 
+      });
+
+      if (error instanceof AppError) {
+        throw error;
       }
+
+      throw new AppError('Provider integration failed', 500);
     }
   }
 
   private async searchGooglePlacesByName(name: string, country: string) {
     try {
+      logger.info('Searching Google Places', { name, country });
+
       const response = await axios.get('https://maps.googleapis.com/maps/api/place/textsearch/json', {
         params: {
           query: `${name} healthcare ${country}`,
@@ -74,49 +102,74 @@ class ProviderNameIntegrationService {
       });
 
       if (!response.data.results) {
+        logger.warn('No results found in Google Places search', { name, country });
         return [];
       }
 
       const limit = pLimit(5);
       const placeDetails = await Promise.all(
         response.data.results.map((place: any) => limit(async () => {
-          const detailsResponse = await axios.get('https://maps.googleapis.com/maps/api/place/details/json', {
-            params: {
-              place_id: place.place_id,
-              fields: 'name,formatted_address,geometry,formatted_phone_number,website,opening_hours,types,photos,reviews,address_components,international_phone_number,rating,user_ratings_total',
-              key: this.googlePlacesApiKey
+          try {
+            const detailsResponse = await axios.get('https://maps.googleapis.com/maps/api/place/details/json', {
+              params: {
+                place_id: place.place_id,
+                fields: 'name,formatted_address,geometry,formatted_phone_number,website,opening_hours,types,photos,reviews,address_components,international_phone_number,rating,user_ratings_total',
+                key: this.googlePlacesApiKey
+              }
+            });
+            
+            const details = detailsResponse.data.result;
+            
+            // Fetch photo if available
+            if (details.photos && details.photos.length > 0) {
+              details.mainPhotoUrl = await this.fetchPlacePhoto(details.photos[0].photo_reference);
             }
-          });
-          
-          const details = detailsResponse.data.result;
-          
-          // Fetch photo if available
-          if (details.photos && details.photos.length > 0) {
-            details.mainPhotoUrl = await this.fetchPlacePhoto(details.photos[0].photo_reference);
+            
+            return details;
+          } catch (error) {
+            logger.error('Error fetching place details', { 
+              placeId: place.place_id, 
+              error 
+            });
+            // Rethrow to be caught by Promise.all
+            throw error;
           }
-          
-          return details;
         }))
       );
 
+      logger.info('Google Places search completed', { 
+        name, 
+        country, 
+        placesFound: placeDetails.length 
+      });
+
       return placeDetails.filter(result => result);
     } catch (error: unknown) {
-      if (error instanceof Error) {
-        throw new Error(`Google Places search failed: ${error.message}`);
-      } else {
-        throw new Error('Google Places search failed: Unknown error');
-      }
+      logger.error('Google Places search failed', { name, country, error });
+      handleExternalServiceError('Google Places', error);
     }
   }
 
   private async fetchPlacePhoto(photoReference: string): Promise<string> {
     try {
+      logger.info('Fetching place photo', { photoReference });
+
       const photoUrl = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photo_reference=${photoReference}&key=${this.googlePlacesApiKey}`;
       const response = await axios.get(photoUrl, { responseType: 'arraybuffer' });
+      
       const base64 = Buffer.from(response.data, 'binary').toString('base64');
-      return `data:${response.headers['content-type']};base64,${base64}`;
+      const photoData = `data:${response.headers['content-type']};base64,${base64}`;
+
+      logger.info('Place photo fetched successfully', { 
+        photoSize: photoData.length 
+      });
+
+      return photoData;
     } catch (error) {
-      console.error('Error fetching place photo:', error);
+      logger.error('Error fetching place photo', { 
+        photoReference, 
+        error 
+      });
       return '';
     }
   }
@@ -281,15 +334,28 @@ class ProviderNameIntegrationService {
   }
 
   async saveProviders(providers: any[]) {
-    return HealthcareProvider.bulkWrite(
-      providers.map(provider => ({
-        updateOne: {
-          filter: { uniqueId: provider.uniqueId },
-          update: { $set: provider },
-          upsert: true
-        }
-      }))
-    );
+    try {
+      logger.info('Saving providers', { providersCount: providers.length });
+
+      const result = await HealthcareProvider.bulkWrite(
+        providers.map(provider => ({
+          updateOne: {
+            filter: { uniqueId: provider.uniqueId },
+            update: { $set: provider },
+            upsert: true
+          }
+        }))
+      );
+
+      logger.info('Providers saved successfully', { 
+        upsertedCount: Object.keys(result.upsertedIds).length 
+      });
+
+      return result;
+    } catch (error) {
+      logger.error('Error saving providers', { error });
+      throw new AppError('Failed to save providers', 500);
+    }
   }
 }
 

@@ -1,44 +1,56 @@
 import axios from 'axios';
 import { HealthcareProvider, InstitutionType, OwnershipType } from '../models/healthcareProvider.model';
-import { IOperatingHours, IContactInfo, IServiceCapabilities, IAddress, ITip } from '../../types/types';
+import { IOperatingHours, IContactInfo, IServiceCapabilities, ITip } from '../../types/types';
 import validateEnv from '../../utils/validateEnv';
+import logger from '../../utils/logger';
+import { mergeProviders } from '../helpers/mergeProviders';
+import { 
+  ExternalServiceAPIError, 
+  AppError 
+} from '../../utils/customErrors';
+import { 
+  handleExternalServiceError, 
+  validateApiKey 
+} from '../helpers/handleExternalServiceErrors';
 
 validateEnv();
 
-interface IMergeableProvider {
-  uniqueId: string;
-  name: string;
-  photo?: string;
-  alternateNames?: string[];
-  institutionType?: InstitutionType;
-  ownershipType?: OwnershipType;
-  location?: {
-    address?: {
-      streetAddress?: string;
-      city?: string;
-      state?: string;
-      country?: string;
-      postalCode?: string;
+export interface IMergeableProvider {
+    uniqueId: string;
+    name: string;
+    photo?: string;
+    alternateNames?: string[];
+    institutionType?: InstitutionType;
+    ownershipType?: OwnershipType;
+    location?: {
+      address?: {
+        streetAddress?: string;
+        city?: string;
+        state?: string;
+        country?: string;
+        postalCode?: string;
+      };
+      coordinates?: {
+        type: 'Point';
+        coordinates: [number, number];
+      };
+      landmark?: string;
+      neighborhood?: string;
     };
-    coordinates?: {
-      type: 'Point';
-      coordinates: [number, number];
-    };
-    landmark?: string;
-    neighborhood?: string;
-  };
-  contactInfo?: IContactInfo;
-  operatingHours?: IOperatingHours[];
-  serviceCapabilities?: IServiceCapabilities;
-  tips?: ITip[];
-  verifiedDate?: Date;
-  lastUpdated?: Date;
-  sourceApis: string[];
+    contactInfo?: IContactInfo;
+    operatingHours?: IOperatingHours[];
+    serviceCapabilities?: IServiceCapabilities;
+    tips?: ITip[];
+    verifiedDate?: Date;
+    lastUpdated?: Date;
+    sourceApis: string[];
 }
 
 class ProviderDataIntegrationService {
   static async fetchOpenStreetMapProviders(bbox: [number, number, number, number]): Promise<IMergeableProvider[]> {
     try {
+      logger.info('Fetching providers from OpenStreetMap', { bbox });
+      
       const response = await axios.get('https://overpass-api.de/api/interpreter', {
         params: {
           data: `
@@ -55,15 +67,28 @@ class ProviderDataIntegrationService {
         }
       });
 
-      return response.data.elements.map(this.normalizeOpenStreetMapProvider);
+      const providers = response.data.elements.map(this.normalizeOpenStreetMapProvider);
+      logger.info('OpenStreetMap providers fetched', { 
+        providersCount: providers.length 
+      });
+      
+      return providers;
     } catch (error) {
-      console.error('OpenStreetMap API Error:', error);
-      return [];
+      logger.error('OpenStreetMap API Error', { error });
+      handleExternalServiceError('OpenStreetMap', error);
     }
   }
-  // Enhanced Foursquare API Integration
+
   static async fetchPlacesApiProviders(location: [number, number], radius: number): Promise<IMergeableProvider[]> {
     try {
+      const foursquareApiKey = process.env.FOURSQUARE_API_KEY;
+      validateApiKey(foursquareApiKey, 'Foursquare');
+
+      logger.info('Fetching providers from Foursquare', { 
+        location, 
+        radius 
+      });
+
       const response = await axios.get('https://api.foursquare.com/v3/places/search', {
         params: {
           ll: location.join(','),
@@ -72,7 +97,7 @@ class ProviderDataIntegrationService {
           fields: 'name,geocodes,location,hours,tel,email,website,photos,categories,features'
         },
         headers: {
-          'Authorization': process.env.FOURSQUARE_API_KEY
+          'Authorization': foursquareApiKey
         }
       });
 
@@ -83,39 +108,52 @@ class ProviderDataIntegrationService {
         })
       );
 
+      logger.info('Foursquare providers fetched', { 
+        providersCount: providers.length 
+      });
+
       return providers;
     } catch (error) {
-      console.error('Foursquare API Error:', error);
-      return [];
+      logger.error('Foursquare API Error', { error });
+      handleExternalServiceError('Foursquare', error);
     }
   }
 
   static async fetchFoursquareProviderDetails(fsq_id: string) {
     try {
+      const foursquareApiKey = process.env.FOURSQUARE_API_KEY;
+      validateApiKey(foursquareApiKey, 'Foursquare');
+
+      logger.info('Fetching Foursquare provider details', { fsq_id });
+
       const [photosResponse, tipsResponse] = await Promise.all([
         axios.get(`https://api.foursquare.com/v3/places/${fsq_id}/photos`, {
-          headers: { 'Authorization': process.env.FOURSQUARE_API_KEY }
+          headers: { 'Authorization': foursquareApiKey }
         }),
         axios.get(`https://api.foursquare.com/v3/places/${fsq_id}/tips`, {
-          headers: { 'Authorization': process.env.FOURSQUARE_API_KEY }
+          headers: { 'Authorization': foursquareApiKey }
         })
       ]);
+
+      logger.info('Foursquare provider details fetched', { 
+        photosCount: photosResponse.data.length,
+        tipsCount: tipsResponse.data.length 
+      });
 
       return {
         photos: photosResponse.data,
         tips: tipsResponse.data
       };
     } catch (error) {
-      console.error('Foursquare Details API Error:', error);
-      return { photos: [], tips: [] };
+      logger.error('Foursquare Details API Error', { error, fsq_id });
+      handleExternalServiceError('Foursquare', error);
     }
   }
 
-  // Enhanced Normalization Methods
   private static normalizeOpenStreetMapProvider(provider: any): IMergeableProvider {
     const operatingHours = this.parseOpenStreetMapHours(provider.tags?.['opening_hours']);
     const services = this.parseOpenStreetMapServices(provider.tags);
-
+ 
     return {
       uniqueId: `OSM_${provider.id}`,
       name: provider.tags?.name || 'Unnamed Provider',
@@ -157,11 +195,11 @@ class ProviderDataIntegrationService {
       sourceApis: ['OpenStreetMap']
     };
   }
-
-
+ 
+ 
   private static async normalizeFoursquareProvider(provider: any): Promise<IMergeableProvider> {
     const photo = provider.photos?.[0] ? `${provider.photos[0].prefix}original${provider.photos[0].suffix}` : '';
-
+ 
     return {
       uniqueId: `FS_${provider.fsq_id}`,
       name: provider.name,
@@ -216,19 +254,19 @@ class ProviderDataIntegrationService {
       sourceApis: ['Foursquare']
     };
   }
-
+ 
   private static parseOpenStreetMapHours(hoursString?: string): IOperatingHours[] {
     if (!hoursString) return [];
-
+ 
     const days = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
     const hours: IOperatingHours[] = [];
-
+ 
     try {
       const segments = hoursString.split(';');
-      
+       
       segments.forEach(segment => {
         const [daysStr, timeStr] = segment.trim().split(' ');
-        
+         
         if (daysStr === '24/7') {
           days.forEach(day => {
             hours.push({
@@ -240,13 +278,13 @@ class ProviderDataIntegrationService {
           });
           return;
         }
-
+ 
         const daysRange = daysStr.split(',');
         daysRange.forEach(dayRange => {
           const [start, end] = dayRange.split('-');
           const startIdx = days.indexOf(start);
           const endIdx = end ? days.indexOf(end) : startIdx;
-
+ 
           for (let i = startIdx; i <= endIdx; i++) {
             const [openTime, closeTime] = timeStr.split('-');
             hours.push({
@@ -261,13 +299,13 @@ class ProviderDataIntegrationService {
     } catch (error) {
       console.error('Error parsing OpenStreetMap hours:', error);
     }
-
+ 
     return hours;
   }
-
+ 
   private static parseFoursquareHours(hours: any[]): IOperatingHours[] {
     if (!hours) return [];
-
+ 
     const days = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
     return hours.map(hour => ({
       day: days[hour.day],
@@ -276,12 +314,12 @@ class ProviderDataIntegrationService {
       is24Hours: hour.open === 0 && hour.close === 2359
     }));
   }
-
+ 
   private static formatFoursquareTime(time: number): string {
     const str = time.toString().padStart(4, '0');
     return `${str.slice(0, 2)}:${str.slice(2)}`;
   }
-
+ 
   private static parseOpenStreetMapServices(tags: any): IServiceCapabilities {
     const services: IServiceCapabilities = {
       specialties: [],
@@ -291,42 +329,42 @@ class ProviderDataIntegrationService {
       languages: [],
       accessibility: []
     };
-
+ 
     if (tags['healthcare:speciality']) {
       services.specialties = tags['healthcare:speciality'].split(';');
     }
-
+ 
     const facilityTags = [
       'healthcare:facilities',
       'amenity',
       'healthcare:equipment'
     ];
-    
+     
     facilityTags.forEach(tag => {
       if (tags[tag]) {
-        services.facilities!.push(...tags[tag].split(';'));
+         services.facilities!.push(...tags[tag].split(';'));
       }
     });
-
+ 
     services.emergencyServices = tags['emergency'] === 'yes' || 
-      tags['healthcare'] === 'emergency' ||
-      tags['emergency_service'] === 'yes';
-
+       tags['healthcare'] === 'emergency' ||
+       tags['emergency_service'] === 'yes';
+ 
     const accessibilityTags = [
       'wheelchair',
       'wheelchair:description',
       'hearing_impaired:access'
     ];
-
+ 
     accessibilityTags.forEach(tag => {
       if (tags[tag]) {
-        services.accessibility!.push(tags[tag]);
+         services.accessibility!.push(tags[tag]);
       }
     });
-
+ 
     return services;
   }
-
+ 
   private static mapInstitutionType(type: string): InstitutionType {
     const typeMap: { [key: string]: InstitutionType } = {
       'hospital': InstitutionType.HOSPITAL,
@@ -334,107 +372,40 @@ class ProviderDataIntegrationService {
       'medical': InstitutionType.MEDICAL_CENTER,
       'emergency': InstitutionType.EMERGENCY_CARE
     };
-
+ 
     return typeMap[type.toLowerCase()] || InstitutionType.MEDICAL_CENTER;
   }
-
+ 
   private static mapOwnershipType(ownership: string): OwnershipType {
     const ownershipMap: { [key: string]: OwnershipType } = {
       'public': OwnershipType.PUBLIC,
       'private': OwnershipType.PRIVATE,
       'government': OwnershipType.GOVERNMENT
     };
-
+ 
     return ownershipMap[ownership.toLowerCase()] || OwnershipType.PRIVATE;
   }
-
+ 
   static async deduplicateAndMergeProviders(providers: IMergeableProvider[]): Promise<IMergeableProvider[]> {
     const providerGroups = new Map<string, IMergeableProvider[]>();
-    
+     
     // Group providers by location proximity and similar names
     providers.forEach(provider => {
       const key = this.generateDeduplicationKey(provider);
       if (!providerGroups.has(key)) {
         providerGroups.set(key, []);
       }
-      providerGroups.get(key)!.push(provider);
+       providerGroups.get(key)!.push(provider);
     });
-
+ 
     const mergedProviders = Array.from(providerGroups.values()).map(group => {
-      return this.mergeProviders(group);
+      return mergeProviders(group);
     });
-
+ 
     return mergedProviders;
   }
-
-  private static mergeProviders(providers: IMergeableProvider[]): IMergeableProvider {
-    const alternateNamesSet = new Set<string>();
-  
-    const merged: IMergeableProvider = {
-      uniqueId: providers[0].uniqueId,
-      name: providers[0].name,
-      sourceApis: [],
-      alternateNames: [],
-      location: {
-        coordinates: providers[0].location?.coordinates,
-        address: {} as Partial<IAddress>,
-      },
-    };
-  
-    providers.forEach(provider => {
-      merged.sourceApis = [...new Set([...merged.sourceApis, ...provider.sourceApis])];
-  
-      if (provider.alternateNames) {
-        provider.alternateNames.forEach(name => alternateNamesSet.add(name));
-      }
-  
-      // Take the most complete address
-      if (provider.location?.address) {
-        Object.entries(provider.location.address).forEach(([key, value]) => {
-          if (value && !merged.location?.address?.[key as keyof typeof merged.location.address]) {
-            if (merged.location?.address) {
-              (merged.location.address as IAddress)[key as keyof IAddress] = value;
-            }
-          }
-        });
-      }
-      
-      // Take the first available value for single-value fields
-      if (!merged.photo && provider.photo) merged.photo = provider.photo;
-      if (!merged.institutionType && provider.institutionType) merged.institutionType = provider.institutionType;
-      if (!merged.ownershipType && provider.ownershipType) merged.ownershipType = provider.ownershipType;
-      if (!merged.location!.landmark && provider.location?.landmark) merged.location!.landmark = provider.location.landmark;
-      if (!merged.location!.neighborhood && provider.location?.neighborhood) {
-        merged.location!.neighborhood = provider.location.neighborhood;
-      }
-  
-      if (provider.contactInfo) {
-        merged.contactInfo = { ...merged.contactInfo, ...provider.contactInfo };
-      }
-  
-      if (provider.operatingHours && (!merged.operatingHours || 
-          provider.operatingHours.length > merged.operatingHours.length)) {
-        merged.operatingHours = provider.operatingHours;
-      }
-  
-      if (provider.serviceCapabilities) {
-        merged.serviceCapabilities = {
-          ...merged.serviceCapabilities,
-          ...provider.serviceCapabilities
-        };
-      }
-    });
-  
-    // Assign the converted array to match the interface
-    merged.alternateNames = Array.from(alternateNamesSet);
-  
-    merged.verifiedDate = new Date();
-    merged.lastUpdated = new Date();
-  
-    return merged;
-  }
-  
-
+   
+ 
   private static generateDeduplicationKey(provider: IMergeableProvider): string {
     const coords = provider.location?.coordinates?.coordinates;
     const name = provider.name.toLowerCase();
@@ -442,34 +413,59 @@ class ProviderDataIntegrationService {
   }
 
   static async integrateProviderData(location: [number, number], radius: number) {
-    const [longitude, latitude] = location;
-    const bbox: [number, number, number, number] = [
-      latitude - (radius / 111),
-      longitude - (radius / 111),
-      latitude + (radius / 111),
-      longitude + (radius / 111)
-    ];
+    try {
+      logger.info('Starting provider data integration', { 
+        location, 
+        radius 
+      });
 
-    const providers = [
-      ...await this.fetchOpenStreetMapProviders(bbox),
-      ...await this.fetchPlacesApiProviders(location, radius * 1000)
-    ];
+      const [longitude, latitude] = location;
+      const bbox: [number, number, number, number] = [
+        latitude - (radius / 111),
+        longitude - (radius / 111),
+        latitude + (radius / 111),
+        longitude + (radius / 111)
+      ];
 
-    const mergedProviders = await this.deduplicateAndMergeProviders(providers);
+      const providers = [
+        ...await this.fetchOpenStreetMapProviders(bbox),
+        ...await this.fetchPlacesApiProviders(location, radius * 1000)
+      ];
+      logger.info('Total providers fetched', { 
+        providersCount: providers.length 
+      });
 
-    const result = await HealthcareProvider.bulkWrite(
-      mergedProviders.map(provider => ({
-        updateOne: {
-          filter: { uniqueId: provider.uniqueId },
-          update: { $set: provider },
-          upsert: true
-        }
-      }))
-    );
+      const mergedProviders = await this.deduplicateAndMergeProviders(providers);
 
-    return Object.values(result.insertedIds).map(id => ({ _id: id }));
+      logger.info('Providers deduplicated and merged', { 
+        mergedProvidersCount: mergedProviders.length 
+      });
+
+      const result = await HealthcareProvider.bulkWrite(
+        mergedProviders.map(provider => ({
+          updateOne: {
+            filter: { uniqueId: provider.uniqueId },
+            update: { $set: provider },
+            upsert: true
+          }
+        }))
+      );
+
+      logger.info('Provider data integration completed', { 
+        insertedCount: Object.keys(result.insertedIds).length 
+      });
+
+      return Object.values(result.insertedIds).map(id => ({ _id: id }));
+    } catch (error) {
+      logger.error('Provider data integration failed', { error });
+      
+      if (error instanceof ExternalServiceAPIError) {
+        throw error;
+      }
+      
+      throw new AppError('Failed to integrate provider data', 500);
+    }
   }
-
 }
 
 export default ProviderDataIntegrationService;
