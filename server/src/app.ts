@@ -11,6 +11,10 @@ import notFound from './middleware/notFound';
 import { corsOptions, helmetOptions, rateLimitOptions } from './utils/securityConfig';
 import logger from './utils/logger';
 import swaggerSpec from './utils/swaggerConfig';
+import YAML from 'yamljs';
+
+const swaggerDocument = YAML.load('./swagger.yaml');
+
 
 const app: Application = express();
 
@@ -35,7 +39,7 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 app.use('/api/v1', routes);
 
 app.use(notFound);
