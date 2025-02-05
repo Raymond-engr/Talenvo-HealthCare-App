@@ -10,7 +10,6 @@ import errorHandler from './middleware/errorHandler';
 import notFound from './middleware/notFound';
 import { corsOptions, helmetOptions, rateLimitOptions } from './utils/securityConfig';
 import logger from './utils/logger';
-import swaggerSpec from './utils/swaggerConfig';
 import YAML from 'yamljs';
 
 const swaggerDocument = YAML.load('./swagger.yaml');
