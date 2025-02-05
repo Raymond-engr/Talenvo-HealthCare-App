@@ -297,7 +297,7 @@ class ProviderDataIntegrationService {
         });
       });
     } catch (error) {
-      console.error('Error parsing OpenStreetMap hours:', error);
+      logger.error('Error parsing OpenStreetMap hours:', error);
     }
  
     return hours;
