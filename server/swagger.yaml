@@ -10,7 +10,7 @@ info:
     email: raymondomoyakhi@gmail.com
 
 servers:
-  - url: 'http://localhost:3000/api/v1'
+  - url: 'https://talenvo-healthcare-app-production-7d8e.up.railway.app/api/v1'
     description: Development server
 
 components:
