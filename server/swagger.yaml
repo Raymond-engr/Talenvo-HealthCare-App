@@ -1,75 +1,314 @@
 openapi: 3.0.0
 info:
   title: Talenvo Healthcare App API
-  description: Location-based healthcare search application that finds healthcare providers based on user location and preferences
+  description: |
+    Location-based healthcare search application that finds healthcare providers based on user location and preferences.
+    Authentication is handled via JWT access tokens and HTTP-only cookie refresh tokens.
   version: 1.0.0
   contact:
     name: Talenvo Healthcare Support
     email: raymondomoyakhi@gmail.com
 
 servers:
-  - url: 'localhost:3000/api/v1'
-    variables:
-      URL:com
-        default: http://localhost:3000/api/v1
-        description: Base URL for the Talenvo Healthcare App API
+  - url: 'http://localhost:3000/api/v1'
+    description: Development server
 
 components:
   securitySchemes:
-    OAuth2:
-      type: oauth2
-      flows:
-        implicit:
-          authorizationUrl: 'localhost:3000/api/v1/auth/login'
-          scopes:
-            read: Read access to user profile and healthcare search
-            write: Modify user profile and perform actions
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
 
   schemas:
     User:
       type: object
       properties:
+        _id:
+          type: string
         name:
           type: string
+          maxLength: 50
         email:
           type: string
           format: email
-    
+        isEmailVerified:
+          type: boolean
+        lastLogin:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    AuthResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        accessToken:
+          type: string
+        user:
+          type: object
+          properties:
+            id:
+              type: string
+            name:
+              type: string
+            email:
+              type: string
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        code:
+          type: string
+
     HealthcareProvider:
       type: object
       properties:
+        uniqueId:
+          type: string
         name:
           type: string
-        location:
+        photo:
+          type: string
+        alternateNames:
           type: array
           items:
-            type: number
-        distance:
-          type: number
-        specialty:
+            type: string
+        institutionType:
           type: string
+          enum: [hospital, clinic, medical_center, diagnostic_center, emergency_care, specialized_care]
+        ownershipType:
+          type: string
+          enum: [public, private, non_profit, government, charitable]
+        location:
+          type: object
+          properties:
+            address:
+              type: object
+              properties:
+                streetAddress:
+                  type: string
+                city:
+                  type: string
+                state:
+                  type: string
+                country:
+                  type: string
+                postalCode:
+                  type: string
+            coordinates:
+              type: object
+              properties:
+                type:
+                  type: string
+                  enum: [Point]
+                coordinates:
+                  type: array
+                  items:
+                    type: number
+            landmark:
+              type: string
+            neighborhood:
+              type: string
+        contactInfo:
+          type: object
+          properties:
+            phoneNumbers:
+              type: array
+              items:
+                type: string
+            email:
+              type: string
+              format: email
+            website:
+              type: string
+        operatingHours:
+          type: array
+          items:
+            type: object
+            properties:
+              day:
+                type: string
+                enum: [Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday]
+              openTime:
+                type: string
+              closeTime:
+                type: string
+              isOpen24Hours:
+                type: boolean
+        serviceCapabilities:
+          type: object
+          properties:
+            specialties:
+              type: array
+              items:
+                type: string
+            appointmentBooking:
+              type: object
+              properties:
+                available:
+                  type: boolean
+                methods:
+                  type: array
+                  items:
+                    type: string
+                    enum: [online, phone, walk-in, email]
+                advanceNoticeRequired:
+                  type: number
+            emergencyServices:
+              type: boolean
+            languages:
+              type: array
+              items:
+                type: string
+                content:
+                 application/json:
+                  schema:
+                    $ref: '#/components/schemas/HealthcareProvider'
 
 paths:
   /auth/register:
     post:
       summary: Register a new user account
       requestBody:
+        required: true
         content:
           application/json:
             schema:
               type: object
+              required: [name, email, password]
               properties:
                 name:
                   type: string
+                  maxLength: 50
                 email:
                   type: string
                   format: email
                 password:
                   type: string
-                  format: password
+                  minLength: 8
+      responses:
+        '201':
+          description: Registration successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+        '400':
+          description: Invalid input or email already registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/login:
+    post:
+      summary: User login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
       responses:
         '200':
-          description: Successfully registered user
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+                description: HTTP-only cookie containing refresh token
+        '401':
+          description: Invalid credentials or email not verified
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  code:
+                    type: string
+                  message:
+                    type: string
+                  canResend:
+                    type: boolean
+
+  /auth/refresh-token:
+    post:
+      summary: Refresh access token using refresh token cookie
+      responses:
+        '200':
+          description: New access token generated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  accessToken:
+                    type: string
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+                description: New HTTP-only refresh token cookie
+        '401':
+          description: Invalid or expired refresh token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/logout:
+    post:
+      summary: Logout user and invalidate tokens
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Successfully logged out
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+                description: Clears refresh token cookie
 
   /auth/verify-email/{token}:
     get:
@@ -83,52 +322,79 @@ paths:
       responses:
         '200':
           description: Email successfully verified
-
-  /auth/login:
-    post:
-      summary: User login
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                email:
-                  type: string
-                  format: email
-                password:
-                  type: string
-                  format: password
-      responses:
-        '200':
-          description: Successfully logged in
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  token:
+                  success:
+                    type: boolean
+                  message:
                     type: string
 
-  /auth/forgot-password:
+  /auth/resend-verification:
     post:
-      summary: Initiate password reset
+      summary: Resend email verification token
       requestBody:
+        required: true
         content:
           application/json:
             schema:
               type: object
+              required: [email]
               properties:
                 email:
                   type: string
                   format: email
       responses:
         '200':
-          description: Password reset instructions sent
+          description: Verification email sent
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+        '400':
+          description: Invalid request or rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/forgot-password:
+    post:
+      summary: Initiate password reset
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email:
+                  type: string
+                  format: email
+      responses:
+        '200':
+          description: Password reset email sent
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
 
   /auth/reset-password/{token}:
     post:
-      summary: Reset user password
+      summary: Reset password using reset token
       parameters:
         - in: path
           name: token
@@ -136,23 +402,34 @@ paths:
           schema:
             type: string
       requestBody:
+        required: true
         content:
           application/json:
             schema:
               type: object
+              required: [password]
               properties:
                 password:
                   type: string
-                  format: password
+                  minLength: 8
       responses:
         '200':
           description: Password successfully reset
-
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string               
+ 
   /user/me:
     get:
       summary: Get current user profile
       security:
-        - OAuth2: [read]
+        - BearerAuth: []
       responses:
         '200':
           description: User profile retrieved
@@ -163,53 +440,92 @@ paths:
 
   /search:
     get:
-      summary: General healthcare search
+      summary: Search healthcare providers
+      security:
+        - BearerAuth: []
       parameters:
         - in: query
-          name: AddressSearch[address]
+          name: LocationSearch
           schema:
-            type: string
-      security:
-        - OAuth2: [read]
+            type: object
+            properties:
+              latitude:
+                type: number
+              longitude:
+                type: number
+        - in: query
+          name: AddressSearch
+          schema:
+            type: object
+            properties:
+              address:
+                type: string
+        - in: query
+          name: NameSearch
+          schema:
+            type: object
+            properties:
+              name:
+                type: string
       responses:
         '200':
-          description: Successful search
+          description: Search results
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/HealthcareProvider'
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      providers:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/HealthcareProvider'
+                      totalResults:
+                        type: number
 
   /search/filter:
     get:
       summary: Filter healthcare providers
+      security:
+        - BearerAuth: []
       parameters:
         - in: query
-          name: userLocation[]
+          name: keyword
           schema:
-            type: array
-            items:
-              type: number
-          description: Latitude and Longitude of user location
+            type: string
+          description: Search keyword for provider name or specialty
         - in: query
           name: maxDistance
           schema:
             type: number
           description: Maximum distance in kilometers
         - in: query
-          name: keyword
+          name: userLocation
           schema:
-            type: string
-          description: Healthcare provider specialty or type
-      security:
-        - OAuth2: [read]
+            type: array
+            items:
+              type: number
+          description: User location coordinates [latitude, longitude]
       responses:
         '200':
           description: Filtered healthcare providers
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/HealthcareProvider'
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      providers:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/HealthcareProvider'
+                      totalResults:
+                        type: number

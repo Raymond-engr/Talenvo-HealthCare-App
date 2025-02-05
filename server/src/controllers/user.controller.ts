@@ -7,7 +7,7 @@ import { AuthRequest } from '../middleware/auth.middleware';
 class UserController {
   getCurrentUser = asyncHandler(async (req: AuthRequest, res: Response) => {
     const user = await User.findById(req.user._id)
-      .select('-password -refreshToken')
+      .select('-password -refreshToken');
 
     if (!user) {
       throw new NotFoundError('User not found');
