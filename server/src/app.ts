@@ -5,18 +5,20 @@ import rateLimit from 'express-rate-limit';
 import swaggerUi from 'swagger-ui-express';
 import cookieParser from 'cookie-parser';
 import morgan from 'morgan';
+import YAML from 'yamljs';
+import compression from 'compression';
 import routes from './routes/index';
 import errorHandler from './middleware/errorHandler';
 import notFound from './middleware/notFound';
 import { corsOptions, helmetOptions, rateLimitOptions } from './utils/securityConfig';
 import logger from './utils/logger';
-import YAML from 'yamljs';
 
 const swaggerDocument = YAML.load('./swagger.yaml');
 
 
 const app: Application = express();
 
+app.use(compression());
 app.use(helmet(helmetOptions));
 app.use(cors(corsOptions));
 app.use(rateLimit(rateLimitOptions));

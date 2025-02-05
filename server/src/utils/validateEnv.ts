@@ -1,11 +1,11 @@
 import dotenv from 'dotenv';
-import { cleanEnv, str, port, url, email } from 'envalid';
+import { cleanEnv, str, port, url, email, num } from 'envalid';
 dotenv.config();
 
 const validateEnv = (): void => {
   cleanEnv(process.env, {
     NODE_ENV: str({ choices: ['development', 'test', 'production'] }),
-    PORT: port(),
+    PORT: num({ default: 3000 }),
     MONGODB_URI: url(),
     FRONTEND_URL: url(),
     LOG_LEVEL: str({ choices: ['error', 'warn', 'info', 'http', 'verbose', 'debug', 'silly'] }),
