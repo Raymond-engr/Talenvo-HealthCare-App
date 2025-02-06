@@ -240,8 +240,6 @@ class HealthcareCenterSearchService {
       logger.warn('No providers found for name', { name: params.name });
     }
 
-    console.log(providers);
-
     return {
       success: true,
       data: {

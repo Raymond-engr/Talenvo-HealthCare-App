@@ -451,6 +451,13 @@ paths:
              type: object
              oneOf:
                - properties:
+                   NameSearch:
+                     type: object
+                     properties:
+                       name:
+                         type: string
+                     required: [name]
+               - properties:
                    LocationSearch:
                      type: object
                      properties:
@@ -466,14 +473,12 @@ paths:
                        address:
                         type: string
                      required: [address]
-               - properties:
-                   NameSearch:
-                     type: object
-                     properties:
-                       name:
-                         type: string
-                     required: [name]
            examples:
+             NameSearchExample:
+               summary: Search by Name
+               value:
+                 NameSearch:
+                   name: "University of Benin Teaching Hospital"
              LocationSearchExample:
                summary: Search by Location
                value:
@@ -485,11 +490,6 @@ paths:
                value:
                  AddressSearch:
                    address: "1600 Amphitheatre Parkway, Mountain View, CA"
-             NameSearchExample:
-               summary: Search by Name
-               value:
-                 NameSearch:
-                   name: "University of Benin Teaching Hospital"
      responses:
        '200':
          description: Search results

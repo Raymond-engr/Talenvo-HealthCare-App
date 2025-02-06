@@ -76,6 +76,7 @@ class ProviderDataIntegrationService {
     } catch (error) {
       logger.error('OpenStreetMap API Error', { error });
       handleExternalServiceError('OpenStreetMap', error);
+      throw error;
     }
   }
 
@@ -93,7 +94,7 @@ class ProviderDataIntegrationService {
         params: {
           ll: location.join(','),
           radius,
-          categories: 'hospital,medical,clinic',
+          categories: '15059,15058,15060',
           fields: 'name,geocodes,location,hours,tel,email,website,photos,categories,features'
         },
         headers: {
@@ -101,8 +102,11 @@ class ProviderDataIntegrationService {
         }
       });
 
+      logger.info('Number of places found', { count: response.data.results.length });
+
       const providers = await Promise.all(
         response.data.results.map(async (provider: any) => {
+          logger.info('Processing provider', { fsq_id: provider.fsq_id });
           const details = await this.fetchFoursquareProviderDetails(provider.fsq_id);
           return this.normalizeFoursquareProvider({ ...provider, ...details });
         })
@@ -428,8 +432,8 @@ class ProviderDataIntegrationService {
       ];
 
       const providers = [
-        ...await this.fetchOpenStreetMapProviders(bbox),
-        ...await this.fetchPlacesApiProviders(location, radius * 1000)
+        ...await this.fetchPlacesApiProviders(location, radius * 1000),
+        ...await this.fetchOpenStreetMapProviders(bbox)
       ];
       logger.info('Total providers fetched', { 
         providersCount: providers.length 

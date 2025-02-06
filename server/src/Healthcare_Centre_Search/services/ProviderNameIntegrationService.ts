@@ -67,8 +67,8 @@ class ProviderNameIntegrationService {
         uniqueId: { $in: successfulProviders.map(p => p.uniqueId) }
       });
 
-      // Cache the result for 1 hour
-      await this.redis.set(cacheKey, JSON.stringify(fullData), 'EX', 3600);
+      // Cache the result for 5 hour
+      await this.redis.set(cacheKey, JSON.stringify(fullData), 'EX', 18000);
 
       logger.info('Provider integration completed successfully', { 
         name, 
