@@ -62,10 +62,13 @@ class ProviderNameIntegrationService {
         throw new AppError('Failed to convert any providers', 400);
       }
 
-      const result = await this.saveProviders(successfulProviders);
+      await this.saveProviders(successfulProviders);
+      const fullData = await HealthcareProvider.find({
+        uniqueId: { $in: successfulProviders.map(p => p.uniqueId) }
+      });
 
       // Cache the result for 1 hour
-      await this.redis.set(cacheKey, JSON.stringify(result), 'EX', 3600);
+      await this.redis.set(cacheKey, JSON.stringify(fullData), 'EX', 3600);
 
       logger.info('Provider integration completed successfully', { 
         name, 
@@ -73,7 +76,7 @@ class ProviderNameIntegrationService {
         providersCount: successfulProviders.length 
       });
 
-      return result;
+      return fullData;
     } catch (error: unknown) {
       logger.error('Provider integration failed', { 
         name, 

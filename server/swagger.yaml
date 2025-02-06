@@ -11,7 +11,7 @@ info:
 
 servers:
   - url: 'https://talenvo-healthcare-app-production-7d8e.up.railway.app/api/v1'
-    description: Development server
+    description: Production server
 
 components:
   securitySchemes:
@@ -439,53 +439,90 @@ paths:
                 $ref: '#/components/schemas/User'
 
   /search:
-    get:
-      summary: Search healthcare providers
-      security:
-        - BearerAuth: []
-      parameters:
-        - in: query
-          name: LocationSearch
-          schema:
-            type: object
-            properties:
-              latitude:
-                type: number
-              longitude:
-                type: number
-        - in: query
-          name: AddressSearch
-          schema:
-            type: object
-            properties:
-              address:
-                type: string
-        - in: query
-          name: NameSearch
-          schema:
-            type: object
-            properties:
-              name:
-                type: string
-      responses:
-        '200':
-          description: Search results
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                  data:
-                    type: object
-                    properties:
-                      providers:
-                        type: array
-                        items:
-                          $ref: '#/components/schemas/HealthcareProvider'
-                      totalResults:
-                        type: number
+   post:
+     summary: Search healthcare providers
+     security:
+       - BearerAuth: []
+     requestBody:
+       required: true
+       content:
+         application/json:
+           schema:
+             type: object
+             oneOf:
+               - properties:
+                   LocationSearch:
+                     type: object
+                     properties:
+                       latitude:
+                         type: number
+                       longitude:
+                         type: number
+                     required: [latitude, longitude]
+               - properties:
+                   AddressSearch:
+                     type: object
+                     properties:
+                       address:
+                        type: string
+                     required: [address]
+               - properties:
+                   NameSearch:
+                     type: object
+                     properties:
+                       name:
+                         type: string
+                     required: [name]
+           examples:
+             LocationSearchExample:
+               summary: Search by Location
+               value:
+                 LocationSearch:
+                   latitude: 37.7749
+                   longitude: -122.4194
+             AddressSearchExample:
+               summary: Search by Address
+               value:
+                 AddressSearch:
+                   address: "1600 Amphitheatre Parkway, Mountain View, CA"
+             NameSearchExample:
+               summary: Search by Name
+               value:
+                 NameSearch:
+                   name: "University of Benin Teaching Hospital"
+     responses:
+       '200':
+         description: Search results
+         content:
+           application/json:
+             schema:
+               type: object
+               properties:
+                 success:
+                   type: boolean
+                 data:
+                   type: object
+                   properties:
+                     providers:
+                       type: array
+                       items:
+                         $ref: '#/components/schemas/HealthcareProvider'
+                     totalResults:
+                       type: number
+       '400':
+         description: Invalid request
+         content:
+           application/json:
+             schema:
+               type: object
+               properties:
+                 status:
+                   type: string
+                 message:
+                   type: string
+               example:
+                 status: "fail"
+                 message: "You must provide either LocationSearch, AddressSearch, or NameSearch."
 
   /search/filter:
     get:
