@@ -51,20 +51,25 @@ class ProviderDataIntegrationService {
     try {
       logger.info('Fetching providers from OpenStreetMap', { bbox });
       
-      const response = await axios.get('https://overpass-api.de/api/interpreter', {
-        params: {
-          data: `
-            [out:json];
-            (
-              node["healthcare"]["name"](${bbox.join(',')});
-              way["healthcare"]["name"](${bbox.join(',')});
-              relation["healthcare"]["name"](${bbox.join(',')});
-            );
-            out body;
-            >;
-            out skel qt;
-          `
-        }
+      const query = `
+        [out:json];
+        (
+          node["healthcare"]["name"](${bbox.join(',')});
+          way["healthcare"]["name"](${bbox.join(',')});
+          relation["healthcare"]["name"](${bbox.join(',')});
+        );
+        out body;
+        >;
+        out skel qt;
+      `.replace(/\s+/g, ' ').trim();
+      
+      const overpassUrl = `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`;
+      logger.info('Overpass API Request URL:', { url: overpassUrl });
+
+      const response = await axios.get(overpassUrl);
+      logger.info('OpenStreetMap API Response:', {
+        status: response.status,
+        data: response.data
       });
 
       const providers = response.data.elements.map(this.normalizeOpenStreetMapProvider);
@@ -154,50 +159,79 @@ class ProviderDataIntegrationService {
     }
   }
 
-  private static normalizeOpenStreetMapProvider(provider: any): IMergeableProvider {
-    const operatingHours = this.parseOpenStreetMapHours(provider.tags?.['opening_hours']);
-    const services = this.parseOpenStreetMapServices(provider.tags);
- 
-    return {
-      uniqueId: `OSM_${provider.id}`,
-      name: provider.tags?.name || 'Unnamed Provider',
-      alternateNames: provider.tags?.['alt_name']?.split(';'),
-      institutionType: this.mapInstitutionType(provider.tags?.['healthcare']),
-      ownershipType: this.mapOwnershipType(provider.tags?.['operator:type']),
-      location: {
-        coordinates: {
-          type: 'Point',
-          coordinates: [
-            provider.lon || provider.center?.lon,
-            provider.lat || provider.center?.lat
-          ]
-        },
-        address: {
-          streetAddress: provider.tags?.['addr:street'] || '',
-          city: provider.tags?.['addr:city'] || '',
-          state: provider.tags?.['addr:state'] || '',
-          country: provider.tags?.['addr:country'] || '',
-          postalCode: provider.tags?.['addr:postcode'] || ''
-        },
-        landmark: provider.tags?.['landmark'] || '',
-        neighborhood: provider.tags?.['addr:suburb'] || ''
-      },
-      contactInfo: {
-        phone: provider.tags?.['phone'] || provider.tags?.['contact:phone'],
-        email: provider.tags?.['email'] || provider.tags?.['contact:email'],
-        website: provider.tags?.['website'] || provider.tags?.['contact:website'],
-        socialMedia: {
-          facebook: provider.tags?.['contact:facebook'],
-          twitter: provider.tags?.['contact:twitter'],
-          instagram: provider.tags?.['contact:instagram']
+  private static normalizeOpenStreetMapProvider(provider: any): IMergeableProvider | null {
+    try {
+      if (!provider.tags || !provider.tags.name) {
+        logger.warn('Invalid OpenStreetMap provider data: missing tags or name', { provider });
+        return null;
+      }
+  
+      let coordinates: [number, number] | null = null;
+  
+      if (provider.type === 'node') {
+        // For nodes, use lat/lon directly
+        coordinates = [provider.lon, provider.lat];
+      } else if (provider.type === 'way') {
+        // For ways, calculate the centroid from nodes
+        if (provider.nodes && provider.nodes.length > 0) {
+          const nodeCoords = provider.nodes.map((node: any) => [node.lon, node.lat]);
+          const centroid = nodeCoords.reduce(
+            (acc: [number, number], coord: [number, number]) => [acc[0] + coord[0], acc[1] + coord[1]],
+            [0, 0]
+          );
+          coordinates = [centroid[0] / nodeCoords.length, centroid[1] / nodeCoords.length];
         }
-      },
-      operatingHours,
-      serviceCapabilities: services,
-      verifiedDate: new Date(),
-      lastUpdated: new Date(),
-      sourceApis: ['OpenStreetMap']
-    };
+      }
+  
+      if (!coordinates) {
+        logger.warn('Invalid OpenStreetMap provider data: missing coordinates', { provider });
+        return null;
+      }
+  
+      const operatingHours = this.parseOpenStreetMapHours(provider.tags?.['opening_hours']);
+      const services = this.parseOpenStreetMapServices(provider.tags);
+  
+      return {
+        uniqueId: `OSM_${provider.id}`,
+        name: provider.tags?.name || 'Unnamed Provider',
+        alternateNames: provider.tags?.['alt_name']?.split(';'),
+        institutionType: this.mapInstitutionType(provider.tags?.['healthcare']),
+        ownershipType: this.mapOwnershipType(provider.tags?.['operator:type']),
+        location: {
+          coordinates: {
+            type: 'Point',
+            coordinates: coordinates
+          },
+          address: {
+            streetAddress: provider.tags?.['addr:street'] || '',
+            city: provider.tags?.['addr:city'] || '',
+            state: provider.tags?.['addr:state'] || '',
+            country: provider.tags?.['addr:country'] || '',
+            postalCode: provider.tags?.['addr:postcode'] || ''
+          },
+          landmark: provider.tags?.['landmark'] || '',
+          neighborhood: provider.tags?.['addr:suburb'] || ''
+        },
+        contactInfo: {
+          phone: provider.tags?.['phone'] || provider.tags?.['contact:phone'],
+          email: provider.tags?.['email'] || provider.tags?.['contact:email'],
+          website: provider.tags?.['website'] || provider.tags?.['contact:website'],
+          socialMedia: {
+            facebook: provider.tags?.['contact:facebook'],
+            twitter: provider.tags?.['contact:twitter'],
+            instagram: provider.tags?.['contact:instagram']
+          }
+        },
+        operatingHours,
+        serviceCapabilities: services,
+        verifiedDate: new Date(),
+        lastUpdated: new Date(),
+        sourceApis: ['OpenStreetMap']
+      };
+    } catch (error) {
+      logger.error('Error normalizing OpenStreetMap provider', { error, provider });
+      return null;
+    }
   }
  
  
@@ -282,13 +316,11 @@ class ProviderDataIntegrationService {
           });
           return;
         }
- 
         const daysRange = daysStr.split(',');
         daysRange.forEach(dayRange => {
           const [start, end] = dayRange.split('-');
           const startIdx = days.indexOf(start);
           const endIdx = end ? days.indexOf(end) : startIdx;
- 
           for (let i = startIdx; i <= endIdx; i++) {
             const [openTime, closeTime] = timeStr.split('-');
             hours.push({
@@ -303,7 +335,6 @@ class ProviderDataIntegrationService {
     } catch (error) {
       logger.error('Error parsing OpenStreetMap hours:', error);
     }
- 
     return hours;
   }
  
@@ -337,35 +368,29 @@ class ProviderDataIntegrationService {
     if (tags['healthcare:speciality']) {
       services.specialties = tags['healthcare:speciality'].split(';');
     }
- 
     const facilityTags = [
       'healthcare:facilities',
       'amenity',
       'healthcare:equipment'
     ];
-     
     facilityTags.forEach(tag => {
       if (tags[tag]) {
          services.facilities!.push(...tags[tag].split(';'));
       }
     });
- 
     services.emergencyServices = tags['emergency'] === 'yes' || 
        tags['healthcare'] === 'emergency' ||
        tags['emergency_service'] === 'yes';
- 
     const accessibilityTags = [
       'wheelchair',
       'wheelchair:description',
       'hearing_impaired:access'
     ];
- 
     accessibilityTags.forEach(tag => {
       if (tags[tag]) {
          services.accessibility!.push(tags[tag]);
       }
     });
- 
     return services;
   }
  
