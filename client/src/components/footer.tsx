@@ -1,6 +1,6 @@
 import { Facebook, Twitter, Instagram } from 'lucide-react'
 
-export function Footer() {
+const Footer = () => {
   return (
     <footer className="bg-blue-600 text-white mt-auto">
       <div className="container mx-auto px-4 py-8">
@@ -26,3 +26,4 @@ export function Footer() {
     </footer>
   )
 }
+export default Footer;

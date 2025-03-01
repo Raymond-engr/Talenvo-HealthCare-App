@@ -1,32 +1,31 @@
-import { Button } from "@/components/ui/button"
-import Image from "next/image"
+import Image from 'next/image';
+import Doctor1 from '../../public/assets/doc1.png'
 
-export function HeroSection() {
+const HeroSection = () => {
   return (
-    <div className="relative overflow-hidden">
-      <div className="container mx-auto px-4 py-12 md:py-24">
-        <div className="grid lg:grid-cols-2 gap-8 items-center">
-          <div className="space-y-6">
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold">
+    <div className="relative w-full bg-blue-50 px-4 pt-4 md:px-6 lg:px-8">
+      <div className="max-w-6xl mx-auto">
+        <div className="flex flex-row items-center justify-between">
+          <div className="flex-1 mb-0 md:mr-12">
+            <h2 className="text-2xl md:text-4xl lg:text-5xl font-bold mb-4">
               Your Path to
-              <span className="text-blue-600"> Affordable Healthcare</span>
+              <span className="text-sky-600"> Affordable Healthcare</span>
               <br />
               Starts Here
-            </h1>
-            <p className="text-gray-600 text-lg md:text-xl">
-              Easily locate doctors, get booking and tracking of scheduled appointments all in one place
+            </h2>
+            <p className="text-zinc-700 text-xs md:text-sm mb-8">
+              Easily locate providers, view services, and schedule
+              your next visit with confidence
             </p>
-            <div className="flex gap-4">
-              <Button size="lg">Book Appointment</Button>
-            </div>
           </div>
-          <div className="relative h-[300px] md:h-[400px] lg:h-[500px]">
-            <Image
-              src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Homepage.PNG-yN2h92j5lMemfq4oro0I0Iuput8dRB.png"
+          
+          <div className="flex-1">
+            <Image 
+              src={Doctor1}
               alt="Healthcare Professional"
-              fill
-              className="object-contain"
-              priority
+              width={551}
+              height={938}
+              className="rounded-xl"
             />
           </div>
         </div>
@@ -34,3 +33,5 @@ export function HeroSection() {
     </div>
   )
 }
+
+export default HeroSection;

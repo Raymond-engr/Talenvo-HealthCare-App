@@ -1,7 +1,8 @@
 import React from 'react';
-import { Sidebar } from '@/components/layout/sidebar'
-import { MobileNav } from '@/components/layout/mobile-nav'
-import { Footer } from '@/components/footer'
+import Sidebar from '@/components/layout/sidebar'
+import MobileNav from '@/components/layout/mobile-nav'
+import Footer from '@/components/footer'
+import Header from '@/components/header'
 import type { Metadata } from "next";
 import "./globals.css";
 
@@ -18,6 +19,8 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
+        <div className="w-full">
+        <Header />
         <div className="flex min-h-screen">
           <Sidebar />
           <div className="flex-1 flex flex-col pb-20 lg:pb-0">
@@ -25,6 +28,7 @@ export default function RootLayout({
             <Footer />
           </div>
           <MobileNav />
+        </div>
         </div>
       </body>
     </html>

@@ -1,32 +1,36 @@
-'use client'
-
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Search } from 'lucide-react'
 
-export function SearchTabs() {
+const SearchTabs = () => {
   return (
-    <div className="w-full max-w-3xl mx-auto p-4">
-      <div className="flex flex-col gap-4">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 w-5 h-5" />
-          <Input 
-            className="pl-10" 
-            placeholder="Search for doctors, hospitals, specialties..."
-          />
-        </div>
-        <div className="flex gap-2 overflow-x-auto pb-2 md:flex-wrap">
-          {['General', 'Dentist', 'Massage', 'Orthopedic', 'Massage'].map((tab, index) => (
+    <div className="bg-slate-300 w-full max-w-3xl px-4 py-4 rounded-lg items-center flex flex-col justify-center">
+      <div className="flex flex-row gap-1 sm:gap-2 md:gap-4 max-w-2xl">
+              <Input 
+                placeholder="Search by Name or Hospital"
+                className="flex-1 text-xs"
+              />
+              <Input 
+                placeholder="Enter Location"
+                className="flex-1 text-xs"
+              />
+              <Button className="bg-blue-600">
+                <Search className="w-1 h-1 md:w-4 md:h-4" />
+              </Button>
+            </div>
+      <div className="flex flex-wrap gap-2 py-3">
+      {['General', 'Dentist', 'Massage', 'Orthopedic'].map((tab, index) => (
             <Button
               key={index}
               variant="outline"
-              className="whitespace-nowrap"
+              className=" items-center gap-1 px-3 py-2 bg-gray-100 rounded-md hover:bg-gray-200 whitespace-nowrap"
             >
               {tab}
             </Button>
           ))}
-        </div>
       </div>
     </div>
   )
 }
+
+export default SearchTabs;

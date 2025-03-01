@@ -6,9 +6,9 @@ interface SidebarProps {
   className?: string
 }
 
-export function Sidebar({ className }: SidebarProps) {
+const Sidebar  = ({ className }: SidebarProps) => {
   return (
-    <div className={cn("hidden lg:flex flex-col p-4 border-r h-screen sticky top-0 w-[240px]", className)}>
+    <div className={cn("hidden lg:flex flex-col p-4 border-r h-screen sticky z-20 top-0 w-[240px]", className)}>
       <Link href="/" className="flex items-center gap-2 px-2 mb-8">
         <span className="font-bold text-xl">TALENVO</span>
       </Link>
@@ -46,3 +46,5 @@ export function Sidebar({ className }: SidebarProps) {
     </div>
   )
 }
+
+export default  Sidebar;

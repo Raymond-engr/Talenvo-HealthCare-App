@@ -1,9 +1,9 @@
 import Link from 'next/link'
 import { Home, Search, BookmarkIcon, User } from 'lucide-react'
 
-export function MobileNav() {
+const MobileNav = () => {
   return (
-    <div className="fixed bottom-0 left-0 right-0 border-t bg-white lg:hidden">
+    <div className="fixed z-20 bottom-0 left-0 right-0 border-t bg-white lg:hidden">
       <nav className="flex justify-around py-3">
         <Link href="/" className="flex flex-col items-center gap-1">
           <Home className="w-5 h-5" />
@@ -25,3 +25,4 @@ export function MobileNav() {
     </div>
   )
 }
+export default MobileNav;
