@@ -9,7 +9,7 @@ import { FilterIcon } from "lucide-react"
 
 export function FilterSidebar() {
   return (
-    <div className="w-full lg:w-[300px] flex-shrink-0">
+    <div className="w-full lg:w-[250px] flex-shrink-0">
       {/* Mobile Filter Button */}
       <Sheet>
         <SheetTrigger asChild>
@@ -24,7 +24,7 @@ export function FilterSidebar() {
       </Sheet>
 
       {/* Desktop Filter Sidebar */}
-      <div className="hidden lg:block">
+      <div className="hidden lg:block sticky top-20">
         <FilterContent />
       </div>
     </div>
@@ -76,4 +76,3 @@ function FilterContent() {
     </div>
   )
 }
-
