@@ -26,7 +26,7 @@ export default function Home() {
         </div>
       </div>
 
-      <section className="w-full max-w-4xl px-4 py-20 md:py-40 justify-between bg-blue-200">
+      <section className="w-full px-4 py-20 md:py-40 justify-between bg-blue-200">
         <div className="grid md:grid-cols-[1fr_2fr] gap-2 items-center justify-center">
         <div className="flex justify-center items-center">
           <div className="relative w-[260px] h-[180px] sm:w-[280px] sm:h-[190px] md:w-[180px] md:h-[170px]">
