@@ -1,6 +1,6 @@
 import { HospitalCard } from "@/components/provider/hospital-card"
 import { FilterSidebar } from "@/components/filter/filter-sidebar"
-import { SearchTabs } from "@/components/search-tabs"
+import SearchTabs from "@/components/search-tabs"
 
 const hospitals = [
   {

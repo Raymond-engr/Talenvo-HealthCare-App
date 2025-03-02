@@ -6,40 +6,36 @@ interface SidebarProps {
   className?: string
 }
 
-const Sidebar  = ({ className }: SidebarProps) => {
+const Sidebar = ({ className }: SidebarProps) => {
   return (
-    <div className={cn("hidden lg:flex flex-col p-4 border-r h-screen sticky z-20 top-0 w-[240px]", className)}>
-      <Link href="/" className="flex items-center gap-2 px-2 mb-8">
-        <span className="font-bold text-xl">TALENVO</span>
-      </Link>
-      
+    <div className={cn("hidden sm:flex flex-col p-4 border-r h-screen sticky z-20 top-16 w-[140px] bg-white", className)}>
       <nav className="flex flex-col gap-2">
         <Link 
           href="/"
-          className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-100"
+          className="flex items-center gap-3 p-3 rounded-lg hover:bg-blue-100"
         >
-          <Home className="w-5 h-5" />
+          <Home className="w-5 h-5 text-gray-900" />
           <span>Home</span>
         </Link>
         <Link 
           href="/explore"
-          className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-100"
+          className="flex items-center gap-3 p-3 rounded-lg hover:bg-blue-100"
         >
-          <Search className="w-5 h-5" />
+          <Search className="w-5 h-5 text-gray-900" />
           <span>Explore</span>
         </Link>
         <Link 
           href="/saved"
-          className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-100"
+          className="flex items-center gap-3 p-3 rounded-lg hover:bg-blue-100"
         >
-          <BookmarkIcon className="w-5 h-5" />
+          <BookmarkIcon className="w-5 h-5 text-gray-900" />
           <span>Saved</span>
         </Link>
         <Link 
           href="/profile"
-          className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-100"
+          className="flex items-center gap-3 p-3 rounded-lg hover:bg-blue-100"
         >
-          <User className="w-5 h-5" />
+          <User className="w-5 h-5 text-gray-900" />
           <span>Profile</span>
         </Link>
       </nav>
@@ -47,4 +43,4 @@ const Sidebar  = ({ className }: SidebarProps) => {
   )
 }
 
-export default  Sidebar;
+export default Sidebar;
