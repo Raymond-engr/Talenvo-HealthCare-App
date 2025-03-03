@@ -1,52 +1,47 @@
-"use client";
+"use client"
 
-import * as React from "react";
-import { cn } from "@/lib/utils";
-import { Textarea, TextareaProps } from "@/components/ui/textarea";
+import { useRef, useState, useEffect } from "react"
+import { cn } from "@/lib/utils"
 
-// Modified Textarea component with auto-resize functionality
-const AutoResizeTextarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
-  ({ className, value, onChange, ...props }, ref) => {
-    const textareaRef = React.useRef<HTMLTextAreaElement>(null);
+interface AutoResizeTextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
+  className?: string
+}
 
-    // Handle auto-resize logic
-    const adjustHeight = React.useCallback(() => {
-      if (textareaRef.current) {
-        textareaRef.current.style.height = "auto";
-        textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
-      }
-    }, []);
+export const AutoResizeTextarea = ({ className, ...props }: AutoResizeTextareaProps) => {
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const [value, setValue] = useState<string>("")
 
-    React.useEffect(() => {
-      adjustHeight();
-      // Add resize listener for edge cases
-      window.addEventListener("resize", adjustHeight);
-      return () => window.removeEventListener("resize", adjustHeight);
-    }, [adjustHeight, value]);
+  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setValue(e.target.value)
+    
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto"
+      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`
+    }
 
-    return (
-      <Textarea
-        ref={(node) => {
-          if (typeof ref === "function") ref(node);
-          else if (ref) ref.current = node;
-          if (node) textareaRef.current = node;
-        }}
-        className={cn(
-          "resize-none overflow-hidden", // Disable manual resize and hide overflow
-          "min-h-[20px]", // Match original Input component height (h-9 = 36px)
-          className
-        )}
-        value={value}
-        onChange={(e) => {
-          adjustHeight();
-          onChange?.(e);
-        }}
-        {...props}
-      />
-    );
+    if (props.onChange) {
+      props.onChange(e)
+    }
   }
-);
 
-AutoResizeTextarea.displayName = "AutoResizeTextarea";
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto"
+      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`
+    }
+  }, [textareaRef])
 
-export { AutoResizeTextarea };
+  return (
+    <textarea
+      ref={textareaRef}
+      value={value}
+      onChange={handleChange}
+      className={cn(
+        "w-full resize-none overflow-hidden py-2 px-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent min-h-[40px] max-h-[200px]",
+        className
+      )}
+      rows={1}
+      {...props}
+    />
+  )
+}

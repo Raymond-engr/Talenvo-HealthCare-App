@@ -28,7 +28,7 @@ export function HospitalCard({
   services
 }: HospitalCardProps) {
   return (
-    <Card className="overflow-hidden border rounded-lg">
+    <Card className="overflow-hidden border rounded-lg bg-white">
       <div className="relative">
         <div className="relative h-44">
           <Image
@@ -38,9 +38,11 @@ export function HospitalCard({
             className="object-cover"
           />
           <div className="absolute top-2 right-2">
-            <BookmarkIcon className="w-5 h-5 text-white" />
+            <button className="p-1 bg-white rounded-full">
+              <BookmarkIcon className="w-4 h-4" />
+            </button>
           </div>
-          <div className="absolute top-2 left-2 bg-white py-1 px-2 rounded-md text-sm">
+          <div className="absolute top-2 left-2 bg-white py-1 px-2 rounded text-xs font-medium">
             {distance}
           </div>
         </div>
@@ -55,7 +57,7 @@ export function HospitalCard({
           <h3 className="font-semibold text-lg">{name}</h3>
         </Link>
         
-        <p className="text-sm text-gray-700 mt-1">Constlation fee: {consultationFee}</p>
+        <p className="text-sm text-gray-700 mt-1">Consultation fee: {consultationFee}</p>
         
         <div className="flex items-center gap-1 mt-1">
           <MapPin className="w-3 h-3 text-gray-400" />
