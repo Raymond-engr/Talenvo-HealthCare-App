@@ -1,6 +1,8 @@
+// client/src/components/provider/provider-header.tsx
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
-import { Star } from "lucide-react"
+import { Star, BookmarkIcon } from "lucide-react"
+import { ImageWithFallback } from "@/components/image-with-fallback"
 
 interface ProviderHeaderProps {
   name: string
@@ -18,7 +20,13 @@ export function ProviderHeader({ name, rating, reviews, image }: ProviderHeaderP
       <div className="container mx-auto px-4">
         <div className="flex flex-col md:flex-row gap-6 -mt-16 items-start">
           <div className="relative w-32 h-32 rounded-full overflow-hidden border-4 border-white bg-white">
-            <Image src={image || "/placeholder.svg"} alt={name} fill className="object-cover" />
+            <ImageWithFallback
+              src={image}
+              alt={name}
+              fill
+              className="object-cover"
+              fallbackSrc="/placeholder.svg"
+            />
           </div>
           <div className="flex-1 pt-4 md:pt-0">
             <div className="flex flex-col md:flex-row md:items-center gap-4 justify-between">
@@ -29,14 +37,19 @@ export function ProviderHeader({ name, rating, reviews, image }: ProviderHeaderP
                     {[...Array(5)].map((_, i) => (
                       <Star
                         key={i}
-                        className={`w-4 h-4 ${i < rating ? "fill-yellow-400 text-yellow-400" : "text-gray-300"}`}
+                        className={`w-4 h-4 ${i < Math.floor(rating) ? "fill-yellow-400 text-yellow-400" : "text-gray-300"}`}
                       />
                     ))}
                   </div>
                   <span className="text-sm text-gray-600">({reviews} reviews)</span>
                 </div>
               </div>
-              <Button>Book Appointment</Button>
+              <div className="flex space-x-2">
+                <Button className="bg-blue-600 hover:bg-blue-700">Book Appointment</Button>
+                <button className="p-2 border rounded-md">
+                  <BookmarkIcon className="w-5 h-5" />
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -44,4 +57,3 @@ export function ProviderHeader({ name, rating, reviews, image }: ProviderHeaderP
     </div>
   )
 }
-

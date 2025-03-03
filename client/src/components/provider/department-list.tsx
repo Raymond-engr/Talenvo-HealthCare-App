@@ -1,45 +1,67 @@
-import { Stethoscope, Baby, Bone, Heart, Activity } from "lucide-react"
+// client/src/components/provider/department-list.tsx (updated)
+import { Activity, Baby, Bone, Heart, Stethoscope } from "lucide-react"
 
-const departments = [
-  {
-    name: "Oncology",
-    description: "Specialized cancer treatment and care",
-    icon: Activity,
-  },
-  {
-    name: "Pediatrics",
-    description: "Comprehensive healthcare for children",
-    icon: Baby,
-  },
-  {
-    name: "Orthopedics",
-    description: "Bone and joint care specialists",
-    icon: Bone,
-  },
-  {
-    name: "Cardiology",
-    description: "Heart and cardiovascular care",
-    icon: Heart,
-  },
-  {
-    name: "General Medicine",
-    description: "Primary healthcare services",
-    icon: Stethoscope,
-  },
-]
+// Map department names to icons
+const departmentIconMap = {
+  "Oncology": Activity,
+  "Pediatrics": Baby,
+  "Orthopedics": Bone,
+  "Cardiology": Heart,
+  "General Medicine": Stethoscope,
+  // Add more mappings as needed
+};
 
-export function DepartmentList() {
+// Default fallback icon
+const defaultIcon = Activity;
+
+interface Department {
+  name: string;
+  description: string;
+  icon?: string;
+}
+
+interface DepartmentListProps {
+  departments?: Department[];
+}
+
+export function DepartmentList({ departments }: DepartmentListProps) {
+  // Default departments if none provided
+  const deptList = departments || [
+    {
+      name: "Oncology",
+      description: "Specialized care for heart and blood vessel conditions.",
+    },
+    {
+      name: "Pediatrics",
+      description: "Comprehensive healthcare for infants, children.",
+    },
+    {
+      name: "Orthopedics",
+      description: "Comprehensive healthcare for infants, children.",
+    },
+    {
+      name: "General Medicine",
+      description: "Comprehensive healthcare for infants, children.",
+    },
+    {
+      name: "Maternity Care",
+      description: "Comprehensive healthcare for infants, children.",
+    },
+  ];
+
   return (
     <div className="grid gap-4 md:grid-cols-2">
-      {departments.map((dept) => {
-        const Icon = dept.icon
+      {deptList.map((dept) => {
+        // Get icon from map or use default
+        const IconComponent = departmentIconMap[dept.name as keyof typeof departmentIconMap] || defaultIcon;
+        
         return (
           <div
             key={dept.name}
             className="p-4 border rounded-lg flex items-start gap-4 hover:bg-gray-50 transition-colors"
           >
             <div className="p-2 bg-blue-100 rounded-lg">
-              <Icon className="w-6 h-6 text-blue-600" />
+              <IconComponent className="w-6 h-6 text-blue-600" />
             </div>
             <div>
               <h3 className="font-semibold">{dept.name}</h3>
@@ -51,4 +73,3 @@ export function DepartmentList() {
     </div>
   )
 }
-

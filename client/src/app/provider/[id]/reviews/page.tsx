@@ -1,6 +1,6 @@
+// client/src/app/provider/[id]/reviews/page.tsx
 import { ProviderHeader } from "@/components/provider/provider-header"
 import { ReviewCard } from "@/components/reviews/review-card"
-import { ReviewForm } from "@/components/reviews/review-form"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
@@ -21,21 +21,33 @@ const reviews = [
   },
 ]
 
-export default function ReviewsPage({ params }: { params: { id: string } }) {
+// This is a mock function - replace with actual API call
+async function getProviderData(id: string) {
+  return {
+    name: "Ikeja General Hospital",
+    photo: "/hospital-image.jpg",
+    rating: 4.5,
+    reviews: 120
+  };
+}
+
+export default async function ReviewsPage({ params }: { params: { id: string } }) {
+  const provider = await getProviderData(params.id);
+  
   return (
     <main className="min-h-screen pb-8">
       <ProviderHeader
-        name="Ikeja General Hospital"
-        rating={4.5}
-        reviews={1205}
-        image="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Providerdetails.PNG-udrffLNItKGoK72eNIP2jvBir7QyXJ.png"
+        name={provider.name}
+        rating={provider.rating}
+        reviews={provider.reviews}
+        image={provider.photo}
       />
 
       <div className="container mx-auto px-4 py-8">
         <div className="grid lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-3">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-semibold">Reviews (1,205)</h2>
+              <h2 className="text-xl font-semibold">Reviews ({provider.reviews})</h2>
               <Select defaultValue="recent">
                 <SelectTrigger className="w-[180px]">
                   <SelectValue placeholder="Sort by" />
@@ -57,13 +69,8 @@ export default function ReviewsPage({ params }: { params: { id: string } }) {
               Load More
             </Button>
           </div>
-
-          <div>
-            <ReviewForm />
-          </div>
         </div>
       </div>
     </main>
   )
 }
-

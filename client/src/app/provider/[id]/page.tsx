@@ -1,57 +1,194 @@
+// client/src/app/provider/[id]/page.tsx (updated with API integration)
 import { ProviderHeader } from "@/components/provider/provider-header"
 import { DepartmentList } from "@/components/provider/department-list"
-import { Globe, Mail, MapPin, Phone, BookmarkIcon } from "lucide-react"
+import { Globe, Mail, MapPin, Phone } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
+import { BookmarkIcon } from "lucide-react"
 
-export default function ProviderPage({ params }: { params: { id: string } }) {
+// Type definition for provider data from API
+interface ProviderData {
+  uniqueId: string;
+  name: string;
+  photo?: string;
+  alternateNames?: string[];
+  institutionType: string;
+  ownershipType: string;
+  location: {
+    address: {
+      streetAddress: string;
+      city: string;
+      state: string;
+      country: string;
+      postalCode?: string;
+    };
+    coordinates: {
+      type: 'Point';
+      coordinates: [number, number];
+    };
+    landmark?: string;
+    neighborhood?: string;
+  };
+  contactInfo: {
+    phoneNumbers: string[];
+    email?: string;
+    website?: string;
+  };
+  operatingHours: Array<{
+    day: string;
+    openTime: string;
+    closeTime: string;
+    isOpen24Hours?: boolean;
+  }>;
+  serviceCapabilities: {
+    specialties: string[];
+    appointmentBooking: {
+      available: boolean;
+      methods: string[];
+      advanceNoticeRequired?: number;
+    };
+    emergencyServices: boolean;
+    languages: string[];
+  };
+  rating?: number;
+  reviews?: number;
+}
+
+// This is a mock function - replace with actual API call
+async function getProviderData(id: string): Promise<ProviderData> {
+  // In a real implementation, this would fetch from your API
+  return {
+    uniqueId: id,
+    name: "Ikeja General Hospital",
+    photo: "/hospital-image.jpg",
+    institutionType: "hospital",
+    ownershipType: "public",
+    location: {
+      address: {
+        streetAddress: "Opebi Link Road",
+        city: "Ikeja",
+        state: "Lagos",
+        country: "Nigeria"
+      },
+      coordinates: {
+        type: 'Point',
+        coordinates: [3.35, 6.60]
+      }
+    },
+    contactInfo: {
+      phoneNumbers: ["08012345678", "09012345678"],
+      email: "ikejagenhospital@gmail.com",
+      website: "www.ikejageneral.com"
+    },
+    operatingHours: [
+      { day: "Monday", openTime: "8:00", closeTime: "17:00", isOpen24Hours: false }
+    ],
+    serviceCapabilities: {
+      specialties: ["Oncology", "Pediatrics", "Orthopedics", "General Medicine", "Maternity Care"],
+      appointmentBooking: {
+        available: true,
+        methods: ["online", "phone"]
+      },
+      emergencyServices: true,
+      languages: ["English", "Yoruba"]
+    },
+    rating: 4.5,
+    reviews: 120
+  };
+}
+
+// Determine if the provider is open 24/7
+function isOpen24Hours(operatingHours?: Array<{isOpen24Hours?: boolean}>): boolean {
+  if (!operatingHours || operatingHours.length === 0) return false;
+  return operatingHours.some(hour => hour.isOpen24Hours);
+}
+
+export default async function ProviderPage({ params }: { params: { id: string } }) {
+  // Fetch provider data
+  const provider = await getProviderData(params.id);
+  
+  // Convert specialties to department format
+  const departments = provider.serviceCapabilities.specialties.map(specialty => ({
+    name: specialty,
+    description: `${specialty} services and treatments.`, // Default description
+    icon: "Activity" // Default icon - you'll need to add logic to map to appropriate icons
+  }));
+  
+  const is24Hours = isOpen24Hours(provider.operatingHours);
+
   return (
     <main className="min-h-screen pb-8">
       <ProviderHeader
-        name="Ikeja General Hospital"
-        rating={4.5}
-        reviews={1205}
-        image="/hospital-image.jpg"
+        name={provider.name}
+        rating={provider.rating || 0}
+        reviews={provider.reviews || 0}
+        image={provider.photo || "/placeholder.svg"}
       />
 
       <div className="container mx-auto px-4 py-8">
         <div className="grid lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-8">
             <section>
-              <h2 className="text-xl font-semibold mb-4">Overview</h2>
+              <div className="flex items-center mb-4">
+                <h2 className="text-xl font-semibold">Overview</h2>
+                <div className="flex ml-auto space-x-2">
+                  <Link href={`/provider/${params.id}/reviews`} className="text-gray-600 text-sm">
+                    Review ({provider.reviews || 0})
+                  </Link>
+                </div>
+              </div>
               <p className="text-gray-600">
-                Ikeja General Hospital is a leading healthcare facility offering a wide range of medical services, from
+                {provider.name} is a leading healthcare facility offering a wide range of medical services, from
                 outpatient care to specialized surgeries. Established in 1985, we have served over 500,000 patients with
                 compassion and expertise.
               </p>
             </section>
 
             <section>
-              <h2 className="text-xl font-semibold mb-4">Contact Details <span className="text-sm font-normal text-gray-500">(Open 24/7)</span></h2>
+              <h2 className="text-xl font-semibold mb-4">
+                Contact Details 
+                {is24Hours && <span className="text-sm font-normal text-gray-500 ml-2">(Open 24/7)</span>}
+              </h2>
               <div className="space-y-3">
-                <div className="flex items-center gap-3">
-                  <MapPin className="w-5 h-5 text-gray-500" />
-                  <span>Opelo Link Road, Ikeja <Link href="#" className="text-blue-600 ml-2 text-sm">Get Directions</Link></span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <Phone className="w-5 h-5 text-gray-500" />
-                  <span>08012345678, 09012345678</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <Mail className="w-5 h-5 text-gray-500" />
-                  <span>ikejagenhospital@gmail.com</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <Globe className="w-5 h-5 text-gray-500" />
-                  <span>www.ikejageneral.com</span>
-                </div>
+                {provider.location?.address && (
+                  <div className="flex items-center gap-3">
+                    <MapPin className="w-5 h-5 text-gray-500" />
+                    <span>
+                      {provider.location.address.streetAddress}, {provider.location.address.city} 
+                      <Link href="#" className="text-blue-600 ml-2 text-sm">Get Directions</Link>
+                    </span>
+                  </div>
+                )}
+                
+                {provider.contactInfo?.phoneNumbers && provider.contactInfo.phoneNumbers.length > 0 && (
+                  <div className="flex items-center gap-3">
+                    <Phone className="w-5 h-5 text-gray-500" />
+                    <span>{provider.contactInfo.phoneNumbers.join(', ')}</span>
+                  </div>
+                )}
+                
+                {provider.contactInfo?.email && (
+                  <div className="flex items-center gap-3">
+                    <Mail className="w-5 h-5 text-gray-500" />
+                    <span>{provider.contactInfo.email}</span>
+                  </div>
+                )}
+                
+                {provider.contactInfo?.website && (
+                  <div className="flex items-center gap-3">
+                    <Globe className="w-5 h-5 text-gray-500" />
+                    <span>{provider.contactInfo.website}</span>
+                  </div>
+                )}
               </div>
             </section>
 
-            <section>
-              <h2 className="text-xl font-semibold mb-4">Departments</h2>
-              <DepartmentList />
-            </section>
+            {provider.serviceCapabilities?.specialties && provider.serviceCapabilities.specialties.length > 0 && (
+              <section>
+                <h2 className="text-xl font-semibold mb-4">Departments</h2>
+                <DepartmentList departments={departments} />
+              </section>
+            )}
           </div>
 
           <div className="space-y-8">

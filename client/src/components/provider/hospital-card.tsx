@@ -1,19 +1,20 @@
+// client/src/components/provider/hospital-card.tsx
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import { BookmarkIcon, MapPin, Star } from "lucide-react"
-import Image from "next/image"
 import Link from "next/link"
+import { ImageWithFallback } from "@/components/image-with-fallback"
 
 interface HospitalCardProps {
   id?: string
   name: string
   image: string
-  consultationFee: string
+  consultationFee?: string  // Make optional
   location: string
   rating: number
   reviews: number
   distance: string
-  services: string
+  services?: string  // Make optional
 }
 
 export function HospitalCard({ 
@@ -25,17 +26,18 @@ export function HospitalCard({
   rating, 
   reviews, 
   distance,
-  services
+  services = "Healthcare"  // Provide default
 }: HospitalCardProps) {
   return (
     <Card className="overflow-hidden border rounded-lg bg-white">
       <div className="relative">
         <div className="relative h-44">
-          <Image
-            src={image || "/placeholder.svg"}
+          <ImageWithFallback
+            src={image}
             alt={name}
             fill
             className="object-cover"
+            fallbackSrc="/placeholder.svg"
           />
           <div className="absolute top-2 right-2">
             <button className="p-1 bg-white rounded-full">
@@ -57,7 +59,9 @@ export function HospitalCard({
           <h3 className="font-semibold text-lg">{name}</h3>
         </Link>
         
-        <p className="text-sm text-gray-700 mt-1">Consultation fee: {consultationFee}</p>
+        {consultationFee && (
+          <p className="text-sm text-gray-700 mt-1">Consultation fee: {consultationFee}</p>
+        )}
         
         <div className="flex items-center gap-1 mt-1">
           <MapPin className="w-3 h-3 text-gray-400" />
