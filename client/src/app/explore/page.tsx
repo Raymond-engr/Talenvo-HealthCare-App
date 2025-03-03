@@ -83,12 +83,11 @@ export default function ExplorePage() {
       <div className="container mx-auto px-4 py-6">
         <h1 className="text-2xl font-bold mb-6">Find Healthcare Services</h1>
         
-        {/* Pass the filter toggle handler to ExploreSearchTabs */}
         <ExploreSearchTabs onAdvancedFiltersClick={() => setIsFiltersOpen(true)} />
         
         {/* Filter Sheet */}
         <Sheet open={isFiltersOpen} onOpenChange={setIsFiltersOpen}>
-          <SheetContent side="left" className="w-full sm:max-w-md">
+          <SheetContent side="right" className="w-full sm:max-w-md">
             <FilterSidebar onClose={() => setIsFiltersOpen(false)} />
           </SheetContent>
         </Sheet>
