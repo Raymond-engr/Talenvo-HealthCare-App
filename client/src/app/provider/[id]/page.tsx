@@ -1,10 +1,24 @@
 // client/src/app/provider/[id]/page.tsx
+"use client"
+
+import { useState, useEffect } from "react"
 import { ProviderHeader } from "@/components/provider/provider-header"
 import { DepartmentList } from "@/components/provider/department-list"
-import { Globe, Mail, MapPin, Phone } from "lucide-react"
+import { Globe, Mail, MapPin, Phone, BookmarkIcon } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
-import { BookmarkIcon } from "lucide-react"
+
+interface Provider {
+  id: string;
+  name: string;
+  image: string;
+  consultationFee: string;
+  location: string;
+  rating: number;
+  reviews: number;
+  distance: string;
+  services: string;
+}
 
 // Type definition for provider data
 interface ProviderData {
@@ -91,20 +105,51 @@ async function getProviderData(id: string): Promise<ProviderData> {
   };
 }
 
-export default async function ProviderPage({ params }: { params: { id: string } }) {
-  const provider = await getProviderData(params.id);
+export default function ProviderPage({ params }: { params: { id: string } }) {
+  const [provider, setProvider] = useState<ProviderData | null>(null)
+  const [nearbyProviders, setNearbyProviders] = useState<any[]>([])
+  
+  useEffect(() => {
+    const fetchData = async () => {
+      const data = await getProviderData(params.id)
+      setProvider(data)
+      
+      // Mock nearby providers data
+      setNearbyProviders([
+        {
+          id: "nearby1",
+          name: "Ikeja General Hospital",
+          image: "/assets/hospital-exterior.jpg",
+          distance: "3 miles away"
+        },
+        {
+          id: "nearby2",
+          name: "Ikeja General Hospital",
+          image: "/assets/hospital-staff.jpg",
+          distance: "3 miles away"
+        }
+      ])
+    }
+    
+    fetchData()
+  }, [params.id])
+  
+  if (!provider) {
+    return <div className="min-h-screen flex items-center justify-center">Loading...</div>
+  }
   
   const departments = provider.serviceCapabilities.specialties.map(specialty => ({
     name: specialty,
     description: `${specialty} services and treatments.`,
     icon: "Activity"
-  }));
+  }))
   
-  const is24Hours = provider.operatingHours.some(hour => hour.isOpen24Hours);
+  const is24Hours = provider.operatingHours.some(hour => hour.isOpen24Hours)
 
   return (
     <main className="min-h-screen pb-8">
       <ProviderHeader
+        id={params.id}
         name={provider.name}
         rating={provider.rating || 0}
         reviews={provider.reviews || 0}
@@ -181,24 +226,14 @@ export default async function ProviderPage({ params }: { params: { id: string } 
             <div>
               <h3 className="font-semibold mb-4">Nearby Providers</h3>
               <div className="grid gap-4">
-                {[1, 2].map((i) => (
-                  <Link href="#" key={i} className="block relative">
-                    <div className="relative h-40 rounded-lg overflow-hidden">
-                      <Image 
-                        src={i === 1 ? "/assets/hospital-exterior.jpg" : "/assets/hospital-staff.jpg"} 
-                        alt="Nearby hospital" 
-                        fill 
-                        className="object-cover" 
-                      />
-                      <button className="absolute top-2 right-2 p-1.5 bg-white rounded-full">
-                        <BookmarkIcon className="w-4 h-4" />
-                      </button>
-                    </div>
-                    <div className="mt-2">
-                      <h4 className="font-medium">Ikeja General Hospital</h4>
-                      <p className="text-sm text-gray-500">(3 miles away)</p>
-                    </div>
-                  </Link>
+                {nearbyProviders.map((nearby) => (
+                  <NearbyProviderCard 
+                    key={nearby.id}
+                    id={nearby.id}
+                    name={nearby.name}
+                    image={nearby.image}
+                    distance={nearby.distance}
+                  />
                 ))}
               </div>
             </div>
@@ -206,5 +241,76 @@ export default async function ProviderPage({ params }: { params: { id: string } 
         </div>
       </div>
     </main>
+  )
+}
+
+// Nearby provider card component with save functionality
+function NearbyProviderCard({ id, name, image, distance }: { id: string, name: string, image: string, distance: string }) {
+  const [isSaved, setIsSaved] = useState(false)
+  
+  // Check if this provider is saved when component mounts
+  useEffect(() => {
+    const savedProviders = JSON.parse(localStorage.getItem('savedProviders') || '[]')
+    const isAlreadySaved = savedProviders.some((provider: Provider) => provider.id === id)
+    setIsSaved(isAlreadySaved)
+  }, [id])
+  
+  const toggleSave = () => {
+    const savedProviders = JSON.parse(localStorage.getItem('savedProviders') || '[]')
+    
+    if (isSaved) {
+      // Remove provider from saved list
+      const updatedSavedProviders = savedProviders.filter((provider: Provider) => provider.id !== id)
+      localStorage.setItem('savedProviders', JSON.stringify(updatedSavedProviders))
+      setIsSaved(false)
+    } else {
+      // Add provider to saved list if not already there
+      const providerExists = savedProviders.some((provider: Provider) => provider.id === id)
+      
+      if (!providerExists) {
+        const providerData = {
+          id,
+          name,
+          image,
+          location: "Opebi Link Road, Ikeja",
+          rating: 5,
+          reviews: 120,
+          distance: "3.5 miles",
+          consultationFee: "$5.00 - $15.00",
+          services: "General Services"
+        }
+        
+        savedProviders.push(providerData)
+        localStorage.setItem('savedProviders', JSON.stringify(savedProviders))
+      }
+      
+      setIsSaved(true)
+    }
+  }
+  
+  return (
+    <Link href={`/provider/${id}`} className="block relative">
+      <div className="relative h-40 rounded-lg overflow-hidden">
+        <Image 
+          src={image} 
+          alt={name} 
+          fill 
+          className="object-cover" 
+        />
+        <button 
+          className={`absolute top-2 right-2 p-1.5 rounded-full ${isSaved ? 'bg-blue-600' : 'bg-white'}`}
+          onClick={(e) => {
+            e.preventDefault()
+            toggleSave()
+          }}
+        >
+          <BookmarkIcon className={`w-4 h-4 ${isSaved ? 'text-white fill-white' : ''}`} />
+        </button>
+      </div>
+      <div className="mt-2">
+        <h4 className="font-medium">{name}</h4>
+        <p className="text-sm text-gray-500">{distance}</p>
+      </div>
+    </Link>
   )
 }

@@ -1,4 +1,7 @@
 // client/src/app/provider/[id]/reviews/page.tsx
+"use client"
+
+import { useState, useEffect } from "react"
 import { ProviderHeader } from "@/components/provider/provider-header"
 import { ReviewCard } from "@/components/reviews/review-card"
 import { Button } from "@/components/ui/button"
@@ -39,12 +42,26 @@ async function getProviderData(id: string) {
   };
 }
 
-export default async function ReviewsPage({ params }: { params: { id: string } }) {
-  const provider = await getProviderData(params.id);
+export default function ReviewsPage({ params }: { params: { id: string } }) {
+  const [provider, setProvider] = useState<any>(null)
+  
+  useEffect(() => {
+    const fetchData = async () => {
+      const data = await getProviderData(params.id)
+      setProvider(data)
+    }
+    
+    fetchData()
+  }, [params.id])
+  
+  if (!provider) {
+    return <div className="min-h-screen flex items-center justify-center">Loading...</div>
+  }
   
   return (
     <main className="min-h-screen pb-8">
       <ProviderHeader
+        id={params.id}
         name={provider.name}
         rating={provider.rating}
         reviews={provider.reviews}

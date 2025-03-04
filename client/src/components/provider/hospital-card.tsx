@@ -1,4 +1,7 @@
 // client/src/components/provider/hospital-card.tsx
+"use client"
+
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import { BookmarkIcon, MapPin, Star } from "lucide-react"
@@ -9,12 +12,25 @@ interface HospitalCardProps {
   id?: string
   name: string
   image: string
-  consultationFee?: string  // Make optional
+  consultationFee?: string
   location: string
   rating: number
   reviews: number
   distance: string
-  services?: string  // Make optional
+  services?: string
+  isSaved?: boolean
+}
+
+interface Provider {
+  id: string;
+  name: string;
+  image: string;
+  consultationFee: string;
+  location: string;
+  rating: number;
+  reviews: number;
+  distance: string;
+  services: string;
 }
 
 export function HospitalCard({ 
@@ -26,8 +42,51 @@ export function HospitalCard({
   rating, 
   reviews, 
   distance,
-  services = "Healthcare"  // Provide default
+  services = "Healthcare",
+  isSaved: initialSavedState = false
 }: HospitalCardProps) {
+  const [isSaved, setIsSaved] = useState(initialSavedState)
+
+  // Check if this provider is saved when component mounts
+  useEffect(() => {
+    const savedProviders = JSON.parse(localStorage.getItem('savedProviders') || '[]')
+    const isAlreadySaved = savedProviders.some((provider: Provider) => provider.id === id)
+    setIsSaved(isAlreadySaved)
+  }, [id])
+
+  const toggleSave = () => {
+    const savedProviders = JSON.parse(localStorage.getItem('savedProviders') || '[]')
+    
+    if (isSaved) {
+      // Remove provider from saved list
+      const updatedSavedProviders = savedProviders.filter((provider: Provider) => provider.id !== id)
+      localStorage.setItem('savedProviders', JSON.stringify(updatedSavedProviders))
+      setIsSaved(false)
+    } else {
+      // Add provider to saved list if not already there
+      const providerExists = savedProviders.some((provider: Provider) => provider.id === id)
+      
+      if (!providerExists) {
+        const providerData = {
+          id,
+          name,
+          image,
+          consultationFee,
+          location,
+          rating,
+          reviews,
+          distance,
+          services
+        }
+        
+        savedProviders.push(providerData)
+        localStorage.setItem('savedProviders', JSON.stringify(savedProviders))
+      }
+      
+      setIsSaved(true)
+    }
+  }
+
   return (
     <Card className="overflow-hidden border rounded-lg bg-white">
       <div className="relative">
@@ -40,8 +99,11 @@ export function HospitalCard({
             fallbackSrc="/placeholder.svg"
           />
           <div className="absolute top-2 right-2">
-            <button className="p-1 bg-white rounded-full">
-              <BookmarkIcon className="w-4 h-4" />
+            <button 
+              className={`p-1 rounded-full ${isSaved ? 'bg-blue-600' : 'bg-white'}`}
+              onClick={toggleSave}
+            >
+              <BookmarkIcon className={`w-4 h-4 ${isSaved ? 'text-white fill-white' : ''}`} />
             </button>
           </div>
           <div className="absolute top-2 left-2 bg-white py-1 px-2 rounded text-xs font-medium">
