@@ -1,4 +1,4 @@
-// client/src/app/provider/[id]/page.tsx (updated with API integration)
+// client/src/app/provider/[id]/page.tsx
 import { ProviderHeader } from "@/components/provider/provider-header"
 import { DepartmentList } from "@/components/provider/department-list"
 import { Globe, Mail, MapPin, Phone } from "lucide-react"
@@ -6,12 +6,11 @@ import Link from "next/link"
 import Image from "next/image"
 import { BookmarkIcon } from "lucide-react"
 
-// Type definition for provider data from API
+// Type definition for provider data
 interface ProviderData {
   uniqueId: string;
   name: string;
   photo?: string;
-  alternateNames?: string[];
   institutionType: string;
   ownershipType: string;
   location: {
@@ -20,14 +19,11 @@ interface ProviderData {
       city: string;
       state: string;
       country: string;
-      postalCode?: string;
     };
     coordinates: {
       type: 'Point';
       coordinates: [number, number];
     };
-    landmark?: string;
-    neighborhood?: string;
   };
   contactInfo: {
     phoneNumbers: string[];
@@ -45,7 +41,6 @@ interface ProviderData {
     appointmentBooking: {
       available: boolean;
       methods: string[];
-      advanceNoticeRequired?: number;
     };
     emergencyServices: boolean;
     languages: string[];
@@ -54,13 +49,12 @@ interface ProviderData {
   reviews?: number;
 }
 
-// This is a mock function - replace with actual API call
+// Mock function - replace with actual API call
 async function getProviderData(id: string): Promise<ProviderData> {
-  // In a real implementation, this would fetch from your API
   return {
     uniqueId: id,
     name: "Ikeja General Hospital",
-    photo: "/hospital-image.jpg",
+    photo: "/assets/hospital-sign.jpg",
     institutionType: "hospital",
     ownershipType: "public",
     location: {
@@ -92,29 +86,21 @@ async function getProviderData(id: string): Promise<ProviderData> {
       emergencyServices: true,
       languages: ["English", "Yoruba"]
     },
-    rating: 4.5,
+    rating: 5,
     reviews: 120
   };
 }
 
-// Determine if the provider is open 24/7
-function isOpen24Hours(operatingHours?: Array<{isOpen24Hours?: boolean}>): boolean {
-  if (!operatingHours || operatingHours.length === 0) return false;
-  return operatingHours.some(hour => hour.isOpen24Hours);
-}
-
 export default async function ProviderPage({ params }: { params: { id: string } }) {
-  // Fetch provider data
   const provider = await getProviderData(params.id);
   
-  // Convert specialties to department format
   const departments = provider.serviceCapabilities.specialties.map(specialty => ({
     name: specialty,
-    description: `${specialty} services and treatments.`, // Default description
-    icon: "Activity" // Default icon - you'll need to add logic to map to appropriate icons
+    description: `${specialty} services and treatments.`,
+    icon: "Activity"
   }));
   
-  const is24Hours = isOpen24Hours(provider.operatingHours);
+  const is24Hours = provider.operatingHours.some(hour => hour.isOpen24Hours);
 
   return (
     <main className="min-h-screen pb-8">
@@ -125,7 +111,7 @@ export default async function ProviderPage({ params }: { params: { id: string } 
         image={provider.photo || "/placeholder.svg"}
       />
 
-      <div className="container mx-auto px-4 py-8">
+      <div className="container px-4 py-8">
         <div className="grid lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-8">
             <section>
@@ -139,8 +125,8 @@ export default async function ProviderPage({ params }: { params: { id: string } 
               </div>
               <p className="text-gray-600">
                 {provider.name} is a leading healthcare facility offering a wide range of medical services, from
-                outpatient care to specialized surgeries. Established in 1985, we have served over 500,000 patients with
-                compassion and expertise.
+                outpatient care to specialized surgeries. Established with a mission to provide accessible and high-quality healthcare
+                services to the community.
               </p>
             </section>
 
@@ -198,14 +184,19 @@ export default async function ProviderPage({ params }: { params: { id: string } 
                 {[1, 2].map((i) => (
                   <Link href="#" key={i} className="block relative">
                     <div className="relative h-40 rounded-lg overflow-hidden">
-                      <Image src="/placeholder.svg" alt="Nearby hospital" fill className="object-cover" />
+                      <Image 
+                        src={i === 1 ? "/assets/hospital-exterior.jpg" : "/assets/hospital-staff.jpg"} 
+                        alt="Nearby hospital" 
+                        fill 
+                        className="object-cover" 
+                      />
                       <button className="absolute top-2 right-2 p-1.5 bg-white rounded-full">
                         <BookmarkIcon className="w-4 h-4" />
                       </button>
                     </div>
                     <div className="mt-2">
                       <h4 className="font-medium">Ikeja General Hospital</h4>
-                      <p className="text-sm text-gray-500">(7 miles away)</p>
+                      <p className="text-sm text-gray-500">(3 miles away)</p>
                     </div>
                   </Link>
                 ))}

@@ -3,6 +3,7 @@ import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Star, BookmarkIcon } from "lucide-react"
 import { ImageWithFallback } from "@/components/image-with-fallback"
+import Doc2 from "../../../public/assets/doc2.png"
 
 interface ProviderHeaderProps {
   name: string
@@ -15,20 +16,20 @@ export function ProviderHeader({ name, rating, reviews, image }: ProviderHeaderP
   return (
     <div className="relative">
       <div className="h-[200px] w-full relative bg-blue-600">
-        <Image src="/placeholder.svg" alt="Hospital banner" fill className="object-cover opacity-20" />
+        <Image src={Doc2} alt="Hospital banner" fill className="object-cover opacity-20" />
       </div>
-      <div className="container mx-auto px-4">
-        <div className="flex flex-col md:flex-row gap-6 -mt-16 items-start">
+      <div className="container px-4">
+        <div className="flex flex-col md:flex-row gap-2 md:gap-6 -mt-16 items-start">
           <div className="relative w-32 h-32 rounded-full overflow-hidden border-4 border-white bg-white">
             <ImageWithFallback
-              src={image}
+              src={Doc2 || image}
               alt={name}
               fill
               className="object-cover"
               fallbackSrc="/placeholder.svg"
             />
           </div>
-          <div className="flex-1 pt-4 md:pt-0">
+          <div className="flex-1 pt-1 md:pt-20">
             <div className="flex flex-col md:flex-row md:items-center gap-4 justify-between">
               <div>
                 <h1 className="text-2xl font-bold">{name}</h1>

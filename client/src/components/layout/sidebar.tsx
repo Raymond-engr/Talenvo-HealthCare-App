@@ -19,7 +19,7 @@ const Sidebar = ({ className }: SidebarProps) => {
   }
 
   return (
-    <div className={cn("hidden sm:flex flex-col p-4 border-r h-screen sticky z-20 top-0 w-[80px] bg-white", className)}>
+    <div className={cn("hidden sm:flex flex-col p-4 border-r h-screen sticky z-20 top-12 w-[80px] bg-white", className)}>
       <nav className="flex flex-col items-center gap-6">
         <Link 
           href="/"
